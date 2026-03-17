@@ -1,0 +1,44 @@
+{
+  "name": "slate-expense-logger",
+  "version": "0.1.0",
+  "description": "Slate – a Slack + Claude powered expense logger for freelance photo shoots.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "echo \"No linter configured yet\""
+  },
+  "keywords": [
+    "slack",
+    "bolt",
+    "typescript",
+    "expenses",
+    "cloud-run"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@google-cloud/firestore": "^8.3.0",
+    "@google-cloud/storage": "^7.19.0",
+    "@slack/bolt": "^3.19.0",
+    "@slack/web-api": "^7.15.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "form-data": "^4.0.5",
+    "googleapis": "^171.4.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/form-data": "^2.2.1",
+    "@types/node": "^22.10.1",
+    "@types/uuid": "^10.0.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

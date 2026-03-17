@@ -1,0 +1,2 @@
+FOREGROUND = '#dae4a3'
+BACKGROUND = '#4b4c3f'
