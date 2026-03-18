@@ -24,6 +24,22 @@ function looksLikeJpeg(buf: Buffer): boolean {
   return buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
 }
 
+function isValidImagePayload(contentType: string | undefined, buf: Buffer): boolean {
+  const isImageContentType = (contentType ?? "").startsWith("image/");
+  const isImageHeader = looksLikePng(buf) || looksLikeJpeg(buf);
+  return isImageContentType && isImageHeader;
+}
+
+function safeUrlForLogs(url: string): string {
+  try {
+    const u = new URL(url);
+    // Avoid logging query params (may include sensitive info)
+    return `${u.protocol}//${u.host}${u.pathname}`;
+  } catch {
+    return url;
+  }
+}
+
 async function fetchSlackFileWithAuth(
   url: string,
   token: string,
@@ -134,17 +150,16 @@ export function registerMessageHandler(app: App): void {
         console.log(`${HANDLER_LOG} Attachments: ${files.length} total, ${imageFiles.length} image(s)`);
 
         if (imageFiles.length > 0) {
-          const token = process.env.SLACK_BOT_TOKEN;
+          // Prefer the workspace-specific bot token (multi-tenant) provided by Bolt.
+          // Fall back to env var for single-tenant/local.
+          const token = context.botToken ?? process.env.SLACK_BOT_TOKEN;
 
           const downloadedImages = await Promise.all(
             imageFiles.map(async (file) => {
               if (!token) return null;
-              const fallbackUrl = file.url_private_download || file.url_private;
-              if (!fallbackUrl) return null;
+              const candidates: string[] = [];
 
-              // Cloud Run reliability: ask Slack Web API for a fresh, authorized download URL
-              // rather than trusting the event payload URL alone.
-              let url = fallbackUrl;
+              // 1) Prefer a fresh API-derived download URL when possible.
               if (file.id) {
                 try {
                   const info = (await (client as unknown as {
@@ -153,54 +168,71 @@ export function registerMessageHandler(app: App): void {
                     ok?: boolean;
                     file?: { url_private_download?: string; url_private?: string };
                   };
-                  const apiUrl =
-                    info?.file?.url_private_download || info?.file?.url_private;
-                  if (apiUrl) url = apiUrl;
+                  if (info?.file?.url_private_download) candidates.push(info.file.url_private_download);
+                  if (info?.file?.url_private) candidates.push(info.file.url_private);
                 } catch (infoErr) {
                   // eslint-disable-next-line no-console
                   console.log(
-                    `${HANDLER_LOG} files.info failed for file id=${file.id}, falling back to event url:`,
+                    `${HANDLER_LOG} files.info failed for file id=${file.id} (will try event URLs):`,
                     infoErr
                   );
                 }
               }
 
-              const res = await fetchSlackFileWithAuth(url, token);
+              // 2) Fall back to URLs included in the event payload.
+              if (file.url_private_download) candidates.push(file.url_private_download);
+              if (file.url_private) candidates.push(file.url_private);
 
-              if (!res.ok) return null;
+              // Deduplicate while preserving order.
+              const seen = new Set<string>();
+              const urls = candidates.filter((u) => {
+                if (seen.has(u)) return false;
+                seen.add(u);
+                return true;
+              });
 
-              const contentType = res.headers.get("content-type") ?? undefined;
-              const contentLength = res.headers.get("content-length") ?? undefined;
-              const finalUrl = (res as unknown as { url?: string }).url;
+              for (const url of urls) {
+                const res = await fetchSlackFileWithAuth(url, token);
+                const contentType = res.headers.get("content-type") ?? undefined;
+                const contentLength = res.headers.get("content-length") ?? undefined;
+                const finalUrl = (res as unknown as { url?: string }).url;
 
-              const buffer = Buffer.from(await res.arrayBuffer());
+                if (!res.ok) {
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    `${HANDLER_LOG} Download attempt failed id=${file.id ?? "?"} name=${file.name ?? "?"} status=${res.status} content-type=${contentType ?? "?"} url=${safeUrlForLogs(finalUrl ?? url)}`
+                  );
+                  continue;
+                }
 
-              const headerHex = buffer.subarray(0, 16).toString("hex");
-              const isImageHeader = looksLikePng(buffer) || looksLikeJpeg(buffer);
-              const isImageContentType = (contentType ?? file.mimetype ?? "").startsWith(
-                "image/"
-              );
+                const buffer = Buffer.from(await res.arrayBuffer());
+                const headerHex = buffer.subarray(0, 16).toString("hex");
+
+                // eslint-disable-next-line no-console
+                console.log(
+                  `${HANDLER_LOG} Downloaded file id=${file.id ?? "?"} name=${file.name ?? "?"} status=${res.status} content-type=${contentType ?? "?"} content-length=${contentLength ?? "?"} bytes=${buffer.length} headerHex=${headerHex} url=${safeUrlForLogs(finalUrl ?? url)}`
+                );
+
+                if (!isValidImagePayload(contentType || file.mimetype, buffer)) {
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    `${HANDLER_LOG} Not an image payload (will try next URL if any): content-type=${contentType ?? file.mimetype ?? "?"} headerHex=${headerHex}`
+                  );
+                  continue;
+                }
+
+                return {
+                  buffer,
+                  filename: file.name || "receipt.jpg",
+                  mimeType: contentType || file.mimetype || "image/jpeg",
+                };
+              }
 
               // eslint-disable-next-line no-console
               console.log(
-                `${HANDLER_LOG} Downloaded file id=${file.id ?? "?"} name=${file.name ?? "?"} status=${res.status} content-type=${contentType ?? "?"} content-length=${contentLength ?? "?"} bytes=${buffer.length} headerHex=${headerHex} url=${finalUrl ?? url}`
+                `${HANDLER_LOG} Skipping upload: no valid image download URL worked for file id=${file.id ?? "?"} name=${file.name ?? "?"}`
               );
-
-              // If Slack auth/redirect issues happen on Cloud Run, we can end up with HTML (200 OK).
-              // Reject uploads that don't look like an image to avoid poisoning GCS with HTML.
-              if (!isImageContentType || !isImageHeader) {
-                // eslint-disable-next-line no-console
-                console.log(
-                  `${HANDLER_LOG} Skipping upload: not a valid image payload (content-type=${contentType ?? file.mimetype ?? "?"} headerHex=${headerHex})`
-                );
-                return null;
-              }
-
-              return {
-                buffer,
-                filename: file.name || "receipt.jpg",
-                mimeType: contentType || file.mimetype || "image/jpeg",
-              };
+              return null;
             })
           );
 

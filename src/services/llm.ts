@@ -18,6 +18,14 @@ Help the photographer log shoot expenses and answer questions about their spendi
 
 ---
 
+## Slack Formatting (mrkdwn)
+Your responses will be shown in Slack.
+
+- For **bold**, use single asterisks: *bold* (NOT **bold**).
+- Avoid fancy Markdown features Slack doesn't support consistently.
+
+---
+
 ## Slash Command Redirects
 Some actions must be performed using slash commands — you cannot perform these yourself. When you detect the user's intent matches one of the following, do not attempt to execute it. Instead, respond with exactly the redirect message shown.
 
@@ -396,6 +404,12 @@ async function executeTool(
 
 const LOG_PREFIX = "[LLM]";
 
+function toSlackMrkdwn(text: string): string {
+  // Slack mrkdwn uses *bold*, not **bold**.
+  // Keep it conservative: only normalize double-asterisk bold.
+  return text.replace(/\*\*(.+?)\*\*/g, "*$1*");
+}
+
 export async function handleLLMMessage(
   userId: string,
   messageText: string,
@@ -455,7 +469,7 @@ export async function handleLLMMessage(
           textBlock && "text" in textBlock
             ? (textBlock as { text: string }).text
             : undefined;
-        const finalText = text ?? "Done.";
+        const finalText = toSlackMrkdwn(text ?? "Done.");
         // eslint-disable-next-line no-console
         console.log(`${LOG_PREFIX} -> FINAL RESPONSE to user (${finalText.length} chars):`, finalText.slice(0, 120) + (finalText.length > 120 ? "…" : ""));
         return finalText;
