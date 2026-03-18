@@ -31,7 +31,7 @@ export function registerAppHomeHandler(app: App): void {
                 type: "header",
                 text: {
                   type: "plain_text",
-                  text: "📋 Slate",
+                  text: "Leo’s Dashboard",
                   emoji: true,
                 },
               },
@@ -39,7 +39,7 @@ export function registerAppHomeHandler(app: App): void {
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: "*Welcome back!* DM Slate to log expenses or ask about your spending.",
+                  text: "Google account connected ✓",
                 },
               },
               {
@@ -49,16 +49,26 @@ export function registerAppHomeHandler(app: App): void {
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: "*Available Commands*",
+                  text: `Last updated: ${new Date().toLocaleString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}`,
                 },
               },
               {
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: "`/newshoot [name]` — Start a new shoot\n`/setshoot [name]` — Switch active shoot\n`/wrapshoot` — Wrap up and archive a shoot\n`/help` — Show all commands",
+                  text: "🚦 *Active Shoots*",
                 },
               },
+              {
+                type: "divider",
+              },
+              ...dashboardBlocks,
               {
                 type: "divider",
               },
@@ -66,7 +76,7 @@ export function registerAppHomeHandler(app: App): void {
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: '*How to log expenses*\nJust DM Slate:\n• _"Uber $45"_\n• _"Lunch with client $32"_\n• Drop a receipt photo',
+                  text: "🗑️ *Archived Shoots*",
                 },
               },
               {
@@ -74,14 +84,10 @@ export function registerAppHomeHandler(app: App): void {
                 elements: [
                   {
                     type: "mrkdwn",
-                    text: "Google account connected ✓",
+                    text: "_Archived shoots will be permanently deleted after 30 days._",
                   },
                 ],
               },
-              {
-                type: "divider",
-              },
-              ...dashboardBlocks,
             ],
           },
         });

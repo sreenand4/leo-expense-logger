@@ -31,14 +31,14 @@ export function getConnectGoogleBlocks(
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "Here to help you log expenses for your shoots right from Slack. DM me receipt photos, quick transaction entries (Uber $35), or ask about your spending summaries!",
+        text: "I'm a Slack based expense logging AI assistant built for freelance photographers. DM me \"Uber $45\" or drop a receipt photo, and I'll handle the rest. Leo reads it, categorizes it, and saves it to a dedicated Google Sheet for every shoot. Built for photographers who'd rather be shooting than doing admin.",
       },
     },
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*Before you can start, connect your Google Drive so Leo can create and manage your expense sheets.",
+        text: "Before you can start, connect your Google Drive so Leo can create and manage your expense sheets.",
       },
     },
     {

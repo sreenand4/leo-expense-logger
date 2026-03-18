@@ -113,18 +113,37 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: "✅ *Google account connected successfully!*\n\nYou're all set. Head back to Slack and run `/newshoot [name]` to create your first shoot.",
+            text: "✅ *Google account connected successfully!*\n\nYou're all set! Here's a guide to get you started:",
           },
         },
         {
-          type: "context",
-          elements: [
-            {
-              type: "mrkdwn",
-              text: "Slate has access to Google Drive and Sheets on your behalf.",
-            },
-          ],
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "1. Run `/newshoot [name]` to create your first shoot.",
+          },
         },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "2. Run `/setshoot [name]` to set your active shoot.",
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "3. Run `/wrapshoot` to archive your shoot and get a summary.",
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "4. Run `/help` to see a list of these commands again.",
+          },
+        }
       ],
     });
 
