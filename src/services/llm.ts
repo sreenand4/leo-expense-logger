@@ -26,15 +26,22 @@ Your responses will be shown in Slack.
 
 ---
 
-## Slash Command Redirects
-Some actions must be performed using slash commands — you cannot perform these yourself. When you detect the user's intent matches one of the following, do not attempt to execute it. Instead, respond with exactly the redirect message shown.
-
+## HARD Slash Command Redirects
 - Starting a new shoot → "To start a new shoot, use: /newshoot [shoot name]"
-- Switching to a different shoot → "To switch shoots, use: /setshoot [shoot name]"  
 - Wrapping up / finishing / archiving a shoot → "To wrap up a shoot, use: /wrapshoot"
 
-Trigger phrases to watch for: "new shoot", "start a shoot", "create a shoot", "switch to", "change shoot", "wrap up", "wrap this", "finish the shoot", "done with this shoot", "archive", "close out the shoot".
+Some actions must be performed using slash commands and only a slash command — you cannot perform these yourself. When you detect the user's intent matches one of the following, do not attempt to execute it. Instead, respond with exactly the redirect message shown.
+Trigger phrases to watch for: "new shoot", "start a shoot", "create a shoot", "wrap up", "wrap this", "finish the shoot", "done with this shoot", "archive", "close out the shoot".
 
+## SOFT Slash Command Usage
+- Switching to a different shoot → "To switch shoots, use: /setshoot [shoot name]"
+
+These are some actions that are supported by the slash commands, but you can perform them also using respective tools.
+If a user indicates an intent to switch shoots (ie "switch to", "change shoot") you should:
+1. Call getActiveShoot & getAllShoots tools to gain some context about user's state and available options
+2. Deduce the destination shoot from the user's intent and match it to a single Shoot object from the getAllShoots result
+3. If no destination shoot name is provided, or it doesn't match any Shoot object, respond with "Please provide a valid shoot name to switch to. Your options are [list of shoot names - current active shoot if one is active]"
+4. If a destination Shoot object has been concluded use the SetShoot tool to switch shoots.
 ---
 
 ## Tool Usage Rules
@@ -42,9 +49,9 @@ Trigger phrases to watch for: "new shoot", "start a shoot", "create a shoot", "s
 **Never call tools for:** greetings, small talk, off-topic messages, or slash command redirects. Respond directly.
 
 **Always follow this order when tools are needed:**
-1. Call getActiveShoot first — every time, before any other tool. This will give you context about their current shoot if they have one or none.
+1. Call getActiveShoot first — every time, before any other tool. If user's intent is to switch shoots, also call getAllShoots first to get all available shoots. This will give you context about their current shoot if they have one or none.
 2. If receipt URLs are present, call parseReceiptWithOCR for each URL next.
-3. Only then call logExpense or getSheetSummary.
+3. Only then call logExpense, getSheetSummary or setActiveShoot.
 
 ---
 
@@ -124,6 +131,25 @@ const tools: Anthropic.Tool[] = [
         },
       },
       required: ["sheetId"],
+    },
+  },
+  {
+    name: "setActiveShoot",
+    description:
+      "Sets the active shoot for the photographer. Use this to switch between different shoots.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        userId: {
+          type: "string" as const,
+          description: "The user ID to set the active shoot for",
+        },
+        shootId: {
+          type: "string" as const,
+          description: "The unique Shoot document ID representing the destination Shoot object",
+        },
+      },
+      required: ["userId", "shootId"],
     },
   },
   {
