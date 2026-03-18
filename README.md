@@ -17,7 +17,7 @@ All of this is wired through a single Bolt app in `src/index.ts`, which plugs in
 
 ---
 
-### The agentic tool-call loop (core idea)
+### The agentic tool-call loop
 
 Instead of writing large, monolithic handlers, each interaction is modeled as:
 
@@ -67,15 +67,3 @@ This makes it easy to extend behavior: adding a new capability usually means add
   - On success, persists an installation document via `saveSlackInstallation` and redirects to `/install-success`.
 
 ---
-
-### How the loop feels in practice
-
-When a user runs a command like `/leo-set-shoot`:
-
-1. The command handler extracts the shoot name and user ID.
-2. It calls `getOrCreateUser` to ensure the user exists.
-3. It calls `shootExistsByName` and `createShoot` as needed.
-4. It calls `setActiveShoot` to attach the shoot to the user.
-5. It replies in Slack with the final state (“You’re now logging to …”).
-
-Every step is one tool call + one decision, making the flow easy to read, test, and extend.
