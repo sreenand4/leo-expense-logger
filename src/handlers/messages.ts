@@ -1,8 +1,11 @@
 import { App, Block, KnownBlock } from "@slack/bolt";
-import { getOrCreateUser } from "../services/firestore";
 import { handleLLMMessage } from "../services/llm";
 import { uploadMultipleReceiptImages } from "../services/storage";
-import { getConnectGoogleBlocks, getConnectGoogleMessage } from "../utils/slack";
+import {
+  getConnectGoogleBlocks,
+  getConnectGoogleMessage,
+  getUserStateWithCache,
+} from "../utils/slack";
 
 const HANDLER_LOG = "[Handler]";
 
@@ -109,13 +112,13 @@ export function registerMessageHandler(app: App): void {
       // eslint-disable-next-line no-console
       console.log(`${HANDLER_LOG} DM received from ${userId}`);
 
-      const user = await getOrCreateUser(
+      const { onboardingStatus } = await getUserStateWithCache(
         userId,
         (msg.user_name as string) ?? userId,
         context.teamId
       );
 
-      if (user.onboardingStatus !== "ready") {
+      if (onboardingStatus !== "ready") {
         await client.chat.postMessage({
           channel: message.channel,
           text: getConnectGoogleMessage(userId),

@@ -16,6 +16,15 @@ dotenv.config();
 
 const { SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, PORT, NODE_ENV } = process.env;
 
+type AuthorizeResult = {
+  botToken: string;
+  botId?: string;
+  teamId?: string;
+};
+
+// In-memory workspace-level cache for Slack installations, keyed by teamId (or "default").
+const installationCache = new Map<string, AuthorizeResult>();
+
 if (!SLACK_SIGNING_SECRET) {
   // Failing fast here avoids confusing runtime errors when Slack hits the app.
   // This is the only critical secret needed for request verification.
@@ -44,16 +53,24 @@ const app = new App({
   // Multi-tenant: prefer workspace-specific bot tokens from Firestore, but
   // fall back to SLACK_BOT_TOKEN for the original single-tenant setup.
   authorize: async ({ teamId }) => {
+    const cacheKey = teamId ?? "default";
+    const cached = installationCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const { getSlackInstallation } = await import("./services/firestore");
 
     if (teamId) {
       const installation = await getSlackInstallation(teamId);
       if (installation) {
-        return {
+        const authResult: AuthorizeResult = {
           botToken: installation.botToken,
           botId: installation.botUserId,
           teamId: installation.workspaceId,
         };
+        installationCache.set(cacheKey, authResult);
+        return authResult;
       }
     }
 
@@ -64,9 +81,11 @@ const app = new App({
       );
     }
 
-    return {
+    const fallback: AuthorizeResult = {
       botToken: SLACK_BOT_TOKEN,
     };
+    installationCache.set(cacheKey, fallback);
+    return fallback;
   },
 });
 

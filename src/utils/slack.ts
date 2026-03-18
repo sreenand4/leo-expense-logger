@@ -1,5 +1,14 @@
 import { getOrCreateUser } from "../services/firestore";
 
+type OnboardingStatus = "pending_google" | "ready";
+
+interface CachedUserState {
+  onboardingStatus: OnboardingStatus;
+  googleRefreshToken: string | null;
+}
+
+const userStateCache = new Map<string, CachedUserState>();
+
 function getBaseUrl(): string {
   return process.env.SERVER_BASE_URL ?? "";
 }
@@ -69,15 +78,42 @@ export function getConnectGoogleBlocks(
   ];
 }
 
+/**
+ * Lightweight cached wrapper around getOrCreateUser for onboarding checks.
+ * Caches only onboardingStatus and googleRefreshToken by userId.
+ */
+export async function getUserStateWithCache(
+  userId: string,
+  displayName: string,
+  workspaceId?: string
+): Promise<CachedUserState> {
+  const cached = userStateCache.get(userId);
+  if (cached) {
+    return cached;
+  }
+
+  const user = await getOrCreateUser(userId, displayName, workspaceId);
+  const state: CachedUserState = {
+    onboardingStatus: user.onboardingStatus,
+    googleRefreshToken: user.googleRefreshToken,
+  };
+  userStateCache.set(userId, state);
+  return state;
+}
+
 export async function requireOnboarded(
   userId: string,
   workspaceId: string | undefined,
   // Deliberately loose typing here so we can pass Bolt's RespondFn without importing its types.
   respond: (message: any) => Promise<void>
 ): Promise<boolean> {
-  const user = await getOrCreateUser(userId, userId, workspaceId);
+  const { onboardingStatus } = await getUserStateWithCache(
+    userId,
+    userId,
+    workspaceId
+  );
 
-  if (user.onboardingStatus !== "ready") {
+  if (onboardingStatus !== "ready") {
     await respond({
       response_type: "ephemeral",
       text: getConnectGoogleMessage(userId),
