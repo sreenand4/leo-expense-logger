@@ -194,6 +194,7 @@ async function executeTool(
   try {
     switch (name) {
       case "getActiveShoot": {
+        await updatePlaceholder?.("Getting active shoot…");
         const result = await getActiveShoot(userId);
         if (result === null) {
           // eslint-disable-next-line no-console
@@ -205,12 +206,14 @@ async function executeTool(
         return JSON.stringify(result);
       }
       case "getAllShoots": {
+        await updatePlaceholder?.("Getting all shoots…");
         const result = await getAllShoots(userId);
         // eslint-disable-next-line no-console
         console.log(`${logPrefix} getAllShoots -> success (${result.length} shoots)`);
         return JSON.stringify(result);
       }
       case "getSheetSummary": {
+        await updatePlaceholder?.("Summarizing expense sheet…");
         const sheetId = input.sheetId as string;
         const result = await getSheetSummary(userId, sheetId);
         // eslint-disable-next-line no-console
@@ -218,7 +221,7 @@ async function executeTool(
         return JSON.stringify(result);
       }
       case "parseReceiptWithOCR": {
-        await updatePlaceholder?.("🖼 Processing image…");
+        await updatePlaceholder?.("Processing image…");
         const imageUrl = input.imageUrl as string;
         // eslint-disable-next-line no-console
         console.log(`${logPrefix} parseReceiptWithOCR -> fetching image from GCS: ${imageUrl.slice(0, 80)}…`);

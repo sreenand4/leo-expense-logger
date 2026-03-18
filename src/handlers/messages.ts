@@ -129,7 +129,7 @@ export function registerMessageHandler(app: App): void {
 
       const post = await client.chat.postMessage({
         channel: message.channel,
-        text: "thinking...",
+        text: "Thinking…",
       });
       placeholder = { ts: post.ts ?? undefined };
       // eslint-disable-next-line no-console

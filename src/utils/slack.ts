@@ -16,7 +16,7 @@ function getBaseUrl(): string {
 /** Shared connect prompt text, used as fallback alongside blocks. */
 export function getConnectGoogleMessage(userId: string): string {
   const baseUrl = getBaseUrl();
-  return `Before using Slate, you need to connect your Google account. Open the Slate app and click *Connect Google Account*, or visit: ${baseUrl}/auth/google?userId=${userId}`;
+  return `Before using Leo, you need to connect your Google account. Open the Leo app and click *Connect Google Account*, or visit: ${baseUrl}/auth/google?userId=${userId}`;
 }
 
 /** Shared Block Kit for \"Connect Google\" — matches the Home tab pending_google view. */

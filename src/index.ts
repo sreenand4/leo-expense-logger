@@ -124,7 +124,7 @@ async function start() {
 
 start().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error("Failed to start Slate server:", err);
+  console.error("Failed to start Leo:", err);
   process.exit(1);
 });
 

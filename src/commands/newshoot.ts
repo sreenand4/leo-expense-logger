@@ -25,43 +25,60 @@ export function registerNewShootCommand(app: App): void {
     const isReady = await requireOnboarded(command.user_id, command.team_id, respond);
     if (!isReady) return;
 
-    // Placeholder + in-place updates
-    await respond({
-      response_type: "ephemeral",
-      text: "Working on it…",
-    });
-    const ephemeral = (text: string) =>
-      respond({
-        response_type: "ephemeral",
-        replace_original: true,
-        text,
-      });
-
     // 0. Check if the command is being run in a direct message
-    if (command.channel_name !== 'directmessage') {
-      await ephemeral(
-        "Please use this command in our DMs. Find me in your sidebar under Direct Messages."
-      );
+    if (command.channel_name !== "directmessage") {
+      await respond({
+        response_type: "ephemeral",
+        text:
+          "Please use this command in our DMs. Find me in your sidebar under Direct Messages.",
+      });
       return;
     }
+
+    // Single placeholder message in the DM that we'll keep updating in-place.
+    let placeholderTs: string | undefined;
+    const updatePlaceholder = async (text: string, blocks?: any[]) => {
+      if (!placeholderTs) {
+        const created = await client.chat.postMessage({
+          channel: command.channel_id,
+          text,
+          ...(blocks ? { blocks } : {}),
+        });
+        placeholderTs = created.ts;
+      } else {
+        await client.chat.update({
+          channel: command.channel_id,
+          ts: placeholderTs,
+          text,
+          ...(blocks ? { blocks } : {}),
+        });
+      }
+    };
 
     // 1. No shoot name provided
     const rawName = (command.text ?? "").trim();
     if (!rawName) {
-      await ephemeral("Please provide a shoot name, e.g. `/newshoot nike-campaign-march`");
+      await updatePlaceholder(
+        "Please provide a shoot name, e.g. `/newshoot nike-campaign-march`"
+      );
       return;
     }
 
     // 2. Sanitize name to lowercase-hyphenated format
     const channelName = toSlackChannelName(rawName);
     if (!channelName) {
-      await ephemeral("That name isn't valid for a Slack channel. Use letters, numbers, hyphens, or underscores.");
+      await updatePlaceholder(
+        "That name isn't valid for a Slack channel. Use letters, numbers, hyphens, or underscores."
+      );
       return;
     }
+
+    await updatePlaceholder("1/4 Validating name…");
 
     console.log("[NewShoot] [1/5] name passed sanitization, creating channel...");
 
     // 4. Create channel — wrap in try/catch for duplicate channel errors
+    await updatePlaceholder("2/4 Creating Slack channel…");
     let channelId: string;
     try {
       const created = await client.conversations.create({
@@ -74,11 +91,15 @@ export function registerNewShootCommand(app: App): void {
       }
     } catch (err) {
       if (isNameTakenError(err)) {
-        await ephemeral("A channel with that name already exists in slack. Try another name.");
+        await updatePlaceholder(
+          "A channel with that name already exists in Slack. Try another name."
+        );
         return;
       }
       logger.error(err);
-      await ephemeral("Something went wrong creating the Slack channel. Try again or pick a different name.");
+      await updatePlaceholder(
+        "Something went wrong creating the Slack channel. Try again or pick a different name."
+      );
       return;
     }
 
@@ -100,6 +121,7 @@ export function registerNewShootCommand(app: App): void {
     console.log("[NewShoot] [3/5] user invited, creating sheet...");
 
     // 6. Create shoot sheet
+    await updatePlaceholder("3/4 Creating Google Sheet…");
     let sheetId: string;
     let sheetUrl: string;
     try {
@@ -108,13 +130,16 @@ export function registerNewShootCommand(app: App): void {
       sheetUrl = sheet.sheetUrl;
     } catch (err) {
       logger.error(err);
-      await ephemeral("The channel was created but the expense sheet couldn’t be created. Check the server logs.");
+      await updatePlaceholder(
+        "The channel was created but the expense sheet couldn’t be created. Check the server logs."
+      );
       return;
     }
 
     console.log("[NewShoot] [4/5] sheet created, saving shoot in Firestore...");
 
     // 7. Save shoot to Firestore | 8. Set as active shoot
+    await updatePlaceholder("4/4 Setting as your active shoot…");
     let shootId: string;
     try {
       shootId = await firestore.createShoot(
@@ -126,7 +151,9 @@ export function registerNewShootCommand(app: App): void {
       await firestore.setActiveShoot(command.user_id, shootId);
     } catch (err) {
       logger.error(err);
-      await ephemeral("The channel and sheet were created but shoot state couldn’t be saved. Check the server logs.");
+      await updatePlaceholder(
+        "The channel and sheet were created but shoot state couldn’t be saved. Check the server logs."
+      );
       return;
     }
 
@@ -139,14 +166,38 @@ export function registerNewShootCommand(app: App): void {
     try {
       const welcome = await client.chat.postMessage({
         channel: channelId,
-        text: `Shoot ${rawName} is ready. Expense sheet: ${sheetUrl}`,
+        text: `Shoot ${channelName || rawName} is ready. Expense sheet: ${sheetUrl}`,
         blocks: [
+          {
+            type: "header",
+            text: {
+              type: "plain_text",
+              text: `${channelName || rawName} is ready`,
+            },
+          },
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `Shoot *${rawName}* is ready. Expense sheet: ${sheetUrl}`,
+              text:
+                `All expenses you log for *${channelName || rawName}* will be reflected here in this channel for quick reference.\n\n` +
+                "You can also open the full external sheet at any time:",
             },
+          },
+          {
+            type: "actions",
+            elements: [
+              {
+                type: "button",
+                text: {
+                  type: "plain_text",
+                  text: "Open expense sheet",
+                  emoji: true,
+                },
+                style: "primary",
+                url: sheetUrl,
+              },
+            ],
           },
         ],
       });
@@ -165,12 +216,44 @@ export function registerNewShootCommand(app: App): void {
       logger.error("Failed to post welcome message to shoot channel:", postErr);
     }
 
-    // 10. Final message: regular (non-ephemeral) so it's a visible, persistent reply (in DM or channel)
-    const successText =
-      `✅ *${rawName}* is all set up! Here's what I created:\n` +
-      `• Channel: #${channelName} — check your sidebar and accept the invite to see the expense log\n` +
-      `• Expense sheet: ${sheetUrl}\n\n` +
-      `This is now your active shoot. Just send me an expense or drop a receipt photo to start logging to ${rawName}`;
-    await ephemeral(successText);
+    // 10. Final message: update the same placeholder with final Block Kit
+    await updatePlaceholder(
+      `*${channelName || rawName}* is all set up!`,
+      [
+        {
+          type: "header",
+          text: {
+            type: "plain_text",
+            text: `${channelName || rawName} is all set up!`,
+            emoji: true,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text:
+              `• Channel: #${channelName || rawName}\n` +
+              `• [Expense Sheet](${sheetUrl})\n\n` +
+              `This is now your active shoot. Just send me an expense or drop a receipt photo to start logging to *${channelName || rawName}*.`,
+          },
+        },
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: "Open Expense Sheet",
+                emoji: true,
+              },
+              style: "primary",
+              url: sheetUrl,
+            },
+          ],
+        },
+      ]
+    );
   });
 }

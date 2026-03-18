@@ -120,6 +120,10 @@ function toShoot(id: string, d: ShootDoc): Shoot {
 
 // --- USER FUNCTIONS ---
 
+// In-memory cache of the user's active shoot (or null if none), keyed by slackUserId.
+// This is per-process and best-effort; Firestore remains the source of truth.
+const activeShootCache = new Map<string, Shoot | null>();
+
 /**
  * Get existing user by slackUserId or create with the given fields. Document ID is slackUserId.
  */
@@ -302,21 +306,37 @@ export async function createShoot(
  * Get the active shoot for the user (from user's activeShootId). Returns null if none set or shoot not found.
  */
 export async function getActiveShoot(userId: string): Promise<Shoot | null> {
+  const cached = activeShootCache.get(userId);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   const userSnap = await getDb()
     .collection(USERS_COLLECTION)
     .doc(userId)
     .get();
-  if (!userSnap.exists) return null;
+  if (!userSnap.exists) {
+    activeShootCache.set(userId, null);
+    return null;
+  }
   const data = userSnap.data() as UserDoc;
   const activeShootId = data.activeShootId ?? null;
-  if (!activeShootId) return null;
+  if (!activeShootId) {
+    activeShootCache.set(userId, null);
+    return null;
+  }
 
   const shootSnap = await getDb()
     .collection(SHOOTS_COLLECTION)
     .doc(activeShootId)
     .get();
-  if (!shootSnap.exists) return null;
-  return toShoot(shootSnap.id, shootSnap.data() as ShootDoc);
+  if (!shootSnap.exists) {
+    activeShootCache.set(userId, null);
+    return null;
+  }
+  const shoot = toShoot(shootSnap.id, shootSnap.data() as ShootDoc);
+  activeShootCache.set(userId, shoot);
+  return shoot;
 }
 
 /**
@@ -341,6 +361,13 @@ export async function setActiveShoot(
   const userRef = getDb().collection(USERS_COLLECTION).doc(userId);
   await userRef.set({ activeShootId: shootId }, { merge: true });
   const shootRef = getDb().collection(SHOOTS_COLLECTION).doc(shootId);
+  const shootSnap = await shootRef.get();
+  if (shootSnap.exists) {
+    const shoot = toShoot(shootSnap.id, shootSnap.data() as ShootDoc);
+    activeShootCache.set(userId, shoot);
+  } else {
+    activeShootCache.set(userId, null);
+  }
   await shootRef.update({ updatedAt: Timestamp.now() });
 }
 
@@ -350,6 +377,7 @@ export async function setActiveShoot(
 export async function clearActiveShoot(userId: string): Promise<void> {
   const userRef = getDb().collection(USERS_COLLECTION).doc(userId);
   await userRef.set({ activeShootId: null }, { merge: true });
+  activeShootCache.set(userId, null);
 }
 
 /**
@@ -419,6 +447,7 @@ export async function archiveShoot(
         .collection(USERS_COLLECTION)
         .doc(userId)
         .set({ activeShootId: null }, { merge: true });
+      activeShootCache.set(userId, null);
     }
   }
 }

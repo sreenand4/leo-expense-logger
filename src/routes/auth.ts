@@ -340,7 +340,7 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
             <div class="card">
               <h1>✅ Google account connected!</h1>
               <p>You can close this tab and return to Slack.</p>
-              <p class="hint">Slate now has access to your Google Drive and Sheets.</p>
+              <p class="hint">Leo now has access to your Google Drive and Sheets.</p>
             </div>
           </div>
         </body>

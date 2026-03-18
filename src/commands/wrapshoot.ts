@@ -38,7 +38,7 @@ function buildSummaryBlocks(
       type: "header" as const,
       text: {
         type: "plain_text" as const,
-        text: `🎬 ${shootName} — Wrapped ✅`,
+        text: `${shootName} — Wrapped`,
         emoji: true,
       },
     },
@@ -46,7 +46,7 @@ function buildSummaryBlocks(
       type: "section" as const,
       text: {
         type: "mrkdwn" as const,
-        text: `💰 *Total:* $${grandTotal.toFixed(2)}\n📋 *${expenses.length}* expense${expenses.length === 1 ? "" : "s"} logged`,
+        text: `💰 *Total:* $${grandTotal.toFixed(2)}\n✏️ *${expenses.length}* expense${expenses.length === 1 ? "" : "s"} logged`,
       },
     },
     {
@@ -57,11 +57,19 @@ function buildSummaryBlocks(
       },
     },
     {
-      type: "section" as const,
-      text: {
-        type: "mrkdwn" as const,
-        text: `📄 Full Sheet: <${sheetUrl}|Open sheet>`,
-      },
+      type: "actions" as const,
+      elements: [
+        {
+          type: "button" as const,
+          text: {
+            type: "plain_text" as const,
+            text: "Open Expense Sheet",
+            emoji: true,
+          },
+          style: "primary",
+          url: sheetUrl,
+        },
+      ],
     },
     {
       type: "context" as const,
@@ -97,7 +105,7 @@ export function registerWrapShootCommand(app: App): void {
     if (command.channel_name !== "directmessage") {
       await respond({
         response_type: "ephemeral",
-        text: "Please use Slate commands from our DM.",
+        text: "Please use Leo commands from our DM.",
       });
       return;
     }
@@ -140,7 +148,7 @@ export function registerWrapShootCommand(app: App): void {
             type: "button" as const,
             text: {
               type: "plain_text" as const,
-              text: "✅ Yes, wrap it",
+              text: "Wrap it",
               emoji: true,
             },
             action_id: "wrapshoot_confirm",
@@ -150,7 +158,7 @@ export function registerWrapShootCommand(app: App): void {
             type: "button" as const,
             text: {
               type: "plain_text" as const,
-              text: "❌ Cancel",
+              text: "Cancel",
               emoji: true,
             },
             action_id: "wrapshoot_cancel",
@@ -244,13 +252,13 @@ export function registerWrapShootCommand(app: App): void {
     await client.chat.update({
       channel,
       ts,
-      text: `:hourglass_flowing_sand: Wrapping up ${shoot.name}...`,
+      text: `Wrapping up ${shoot.name}...`,
       blocks: [
         {
           type: "section" as const,
           text: {
             type: "mrkdwn" as const,
-            text: `:hourglass_flowing_sand: Wrapping up *${shoot.name}*...`,
+            text: `Wrapping up *${shoot.name}*...`,
           },
         },
       ],

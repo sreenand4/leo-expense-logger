@@ -1,7 +1,7 @@
 {
-  "name": "slate-expense-logger",
+  "name": "leo-expense-logger",
   "version": "0.1.0",
-  "description": "Slate – a Slack + Claude powered expense logger for freelance photo shoots.",
+  "description": "Leo – a Slack + Claude powered expense logger for freelance photo shoots.",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
