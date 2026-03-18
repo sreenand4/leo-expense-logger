@@ -22,12 +22,23 @@ export function registerNewShootCommand(app: App): void {
   app.command("/newshoot", async ({ ack, command, respond, logger }) => {
     await ack();
 
+    logger.info(`[NewShoot] command received`, {
+      userId: command.user_id,
+      teamId: command.team_id,
+      channelId: command.channel_id,
+      channelName: command.channel_name,
+      text: command.text,
+    });
+
     const isReady = await requireOnboarded(command.user_id, command.team_id, respond);
     if (!isReady) return;
 
-    // Helper: ephemeral progress/error (avoids burning the single-use response_url)
+    // Helper: ephemeral progress/error
     const ephemeral = (text: string) =>
-      postEphemeral(command.channel_id, command.user_id, text);
+      respond({
+        response_type: "ephemeral",
+        text,
+      });
 
     // 0. Check if the command is being run in a direct message
     if (command.channel_name !== 'directmessage') {

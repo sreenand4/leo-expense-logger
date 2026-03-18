@@ -32,27 +32,32 @@ export function formatDashboardBlocks(shoots: DashboardShoot[]): object[] {
       type: "header",
       text: {
         type: "plain_text",
-        text: "📋 Slate Dashboard",
+        text: "Leo’s Dashboard",
         emoji: true,
       },
     },
     {
-      type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text: `Last updated: ${lastUpdated}`,
-        },
-      ],
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "Google account connected ✓",
+      },
     },
-    { type: "divider" },
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*🟢 Active Shoots*",
+        text: `Last updated: ${lastUpdated}`,
       },
     },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: ":vertical_traffic_light: *Active Shoots*",
+      },
+    },
+    { type: "divider" },
   ];
 
   if (activeShoots.length === 0) {
@@ -80,8 +85,17 @@ export function formatDashboardBlocks(shoots: DashboardShoot[]): object[] {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*📁 Archived Shoots*",
+        text: ":wastebasket: *Archived Shoots*",
       },
+    });
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: "_Archived shoots will be permanently deleted after 30 days._",
+        },
+      ],
     });
     for (const s of archivedShoots) {
       const dateStr = s.archivedAt

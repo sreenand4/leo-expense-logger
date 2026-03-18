@@ -83,25 +83,31 @@ export function registerWrapShootCommand(app: App): void {
   app.command("/wrapshoot", async ({ ack, command, respond }) => {
     await ack();
 
+    // eslint-disable-next-line no-console
+    console.log("[WrapShoot] command received", {
+      userId: command.user_id,
+      teamId: command.team_id,
+      channelId: command.channel_id,
+      channelName: command.channel_name,
+    });
+
     const isReady = await requireOnboarded(command.user_id, command.team_id, respond);
     if (!isReady) return;
 
     if (command.channel_name !== "directmessage") {
-      await postEphemeral(
-        command.channel_id,
-        command.user_id,
-        "Please use Slate commands from our DM."
-      );
+      await respond({
+        response_type: "ephemeral",
+        text: "Please use Slate commands from our DM.",
+      });
       return;
     }
 
     const shoot = await firestore.getActiveShoot(command.user_id);
     if (!shoot) {
-      await postEphemeral(
-        command.channel_id,
-        command.user_id,
-        "You don't have an active shoot. Use /newshoot [name] to start one."
-      );
+      await respond({
+        response_type: "ephemeral",
+        text: "You don't have an active shoot. Use /newshoot [name] to start one.",
+      });
       return;
     }
 

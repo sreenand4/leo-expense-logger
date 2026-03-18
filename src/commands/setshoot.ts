@@ -8,6 +8,15 @@ export function registerSetShootCommand(app: App): void {
   app.command("/setshoot", async ({ ack, command, respond }) => {
     await ack();
 
+    // eslint-disable-next-line no-console
+    console.log("[SetShoot] command received", {
+      userId: command.user_id,
+      teamId: command.team_id,
+      channelId: command.channel_id,
+      channelName: command.channel_name,
+      text: command.text,
+    });
+
     const isReady = await requireOnboarded(command.user_id, command.team_id, respond);
     if (!isReady) return;
 
