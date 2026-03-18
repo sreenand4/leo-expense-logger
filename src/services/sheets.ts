@@ -36,7 +36,6 @@ function getDriveClient(auth: OAuth2Client) {
   return google.drive({ version: "v3", auth });
 }
 
-const DEFAULT_SHEET_NAME = "Sheet1";
 const HEADER_ROW = [
   "Date",
   "Merchant",
@@ -55,13 +54,22 @@ export interface ExpenseRow {
   receiptUrl: string;
 }
 
+// Per-process cache of Drive folder IDs by Slack user ID.
+const driveFolderCache = new Map<string, string>();
+
 async function getOrCreateDriveFolderForUser(
   userId: string,
   auth: OAuth2Client
 ): Promise<string | null> {
   try {
+    const cachedId = driveFolderCache.get(userId);
+    if (cachedId) return cachedId;
+
     const existingId = await getDriveFolderId(userId);
-    if (existingId) return existingId;
+    if (existingId) {
+      driveFolderCache.set(userId, existingId);
+      return existingId;
+    }
 
     const drive = getDriveClient(auth);
     const createRes = await drive.files.create({
@@ -76,6 +84,7 @@ async function getOrCreateDriveFolderForUser(
     if (!folderId) return null;
 
     await setDriveFolderId(userId, folderId);
+    driveFolderCache.set(userId, folderId);
     return folderId;
   } catch (err) {
     console.error(
@@ -87,9 +96,9 @@ async function getOrCreateDriveFolderForUser(
 }
 
 /**
- * Create a new Google Spreadsheet, add header row, and share as "anyone with link" writer.
- * Sheets: spreadsheets.create (POST /v4/spreadsheets), values.update (PUT .../values/{range}).
- * Drive:  permissions.create (POST /drive/v3/files/{fileId}/permissions).
+ * Create a new Google Spreadsheet in the target Drive folder and add header row.
+ * Drive:  files.create (POST /drive/v3/files) with spreadsheet mime type.
+ * Sheets: spreadsheets.values.update (PUT .../values/{range}).
  */
 export async function createShootSheet(
   userId: string,
@@ -98,22 +107,10 @@ export async function createShootSheet(
   try {
     const auth = await getAuthClientForUser(userId);
     const title = `${shootName} — Expenses`;
+    const drive = getDriveClient(auth);
+    const sheets = getSheetsClient(auth);
 
-    // Sheets API v4: spreadsheets.create — request body is Spreadsheet (properties, sheets)
-    const createRes = await getSheetsClient(auth).spreadsheets.create({
-      requestBody: {
-        properties: { title },
-        sheets: [{ properties: { title: DEFAULT_SHEET_NAME } }],
-      },
-    });
-
-    const sheetId = createRes.data.spreadsheetId;
-    if (!sheetId) {
-      throw new Error("Sheets API did not return a spreadsheet ID.");
-    }
-
-    // Move sheet into the user's dedicated Drive folder if available,
-    // otherwise fall back to the shared folder from env.
+    // Create sheet directly in the target folder to avoid extra move calls.
     let folderId = await getOrCreateDriveFolderForUser(userId, auth);
     if (!folderId) {
       const envFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
@@ -121,32 +118,26 @@ export async function createShootSheet(
         folderId = envFolderId;
       }
     }
-    if (folderId) {
-      const fileData = await getDriveClient(auth).files.get({
-        fileId: sheetId,
-        fields: "parents",
-      });
-      const previousParents = fileData.data.parents?.join(",") ?? "";
-      await getDriveClient(auth).files.update({
-        fileId: sheetId,
-        addParents: folderId,
-        removeParents: previousParents,
-        fields: "id, parents",
-      });
+    const createRes = await drive.files.create({
+      requestBody: {
+        name: title,
+        mimeType: "application/vnd.google-apps.spreadsheet",
+        ...(folderId ? { parents: [folderId] } : {}),
+      },
+      fields: "id",
+    });
+
+    const sheetId = createRes.data.id;
+    if (!sheetId) {
+      throw new Error("Drive API did not return a spreadsheet ID.");
     }
 
     // Sheets API v4: spreadsheets.values.update — sets values in a range
-    await getSheetsClient(auth).spreadsheets.values.update({
+    await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: `${DEFAULT_SHEET_NAME}!A1:F1`,
+      range: "A1:F1",
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [HEADER_ROW] },
-    });
-
-    // Drive API v3: permissions.create — request body is Permission (role, type)
-    await getDriveClient(auth).permissions.create({
-      fileId: sheetId,
-      requestBody: { role: "writer", type: "anyone" },
     });
 
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
@@ -171,6 +162,7 @@ export async function appendExpenseRow(
   expense: ExpenseRow
 ): Promise<void> {
   const auth = await getAuthClientForUser(userId);
+  const sheets = getSheetsClient(auth);
   const row = [
     expense.date,
     expense.merchant,
@@ -180,9 +172,9 @@ export async function appendExpenseRow(
     expense.receiptUrl ?? "",
   ];
 
-  await getSheetsClient(auth).spreadsheets.values.append({
+  await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: `${DEFAULT_SHEET_NAME}!A:F`,
+    range: "A:F",
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: [row] },
@@ -197,9 +189,10 @@ export async function getSheetSummary(
   sheetId: string
 ): Promise<ExpenseRow[]> {
   const auth = await getAuthClientForUser(userId);
-  const res = await getSheetsClient(auth).spreadsheets.values.get({
+  const sheets = getSheetsClient(auth);
+  const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
-    range: `${DEFAULT_SHEET_NAME}!A:F`,
+    range: "A:F",
   });
 
   const rows = res.data.values ?? [];

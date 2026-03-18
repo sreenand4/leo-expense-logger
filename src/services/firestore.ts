@@ -1,6 +1,12 @@
 import { Firestore, FieldValue, Timestamp } from "@google-cloud/firestore";
 
+let dbInstance: Firestore | null = null;
+
 function getDb(): Firestore {
+  if (dbInstance) {
+    return dbInstance;
+  }
+
   const credentials = process.env.GCP_CREDENTIALS;
   const projectId = process.env.GCP_PROJECT_ID;
 
@@ -9,16 +15,19 @@ function getDb(): Firestore {
   // If credentials are not provided, fall back to Application Default Credentials (ADC).
   // This is the preferred setup on Cloud Run (attach a service account with the right IAM).
   if (!credentials || credentials.trim().length === 0) {
-    return new Firestore({ projectId });
+    dbInstance = new Firestore({ projectId });
+    return dbInstance;
   }
 
   // Support both JSON-key-in-env (Cloud Run) and file path (local dev).
   if (credentials.trim().startsWith("{")) {
     const parsed = JSON.parse(credentials);
-    return new Firestore({ projectId, credentials: parsed });
+    dbInstance = new Firestore({ projectId, credentials: parsed });
+    return dbInstance;
   }
 
-  return new Firestore({ projectId, keyFilename: credentials });
+  dbInstance = new Firestore({ projectId, keyFilename: credentials });
+  return dbInstance;
 }
 
 // --- COLLECTIONS ---

@@ -374,37 +374,46 @@ async function executeTool(
           notes,
           receiptUrl,
         });
+        await updatePlaceholder?.("Expense saved. Finalizing confirmation…");
         incrementExpenseCount(shootId);
         if (receiptUrls.length > 0) {
           addReceiptUrlsToShoot(shootId, receiptUrls);
         }
 
-        // Notify the shoot's Slack channel so the user sees the update there
-        try {
-          const shoot = await getShoot(shootId);
-          if (shoot?.slackChannelId) {
-            const amountStr = typeof amount === "number" ? amount.toFixed(2) : String(amount);
-            const fallbackText = `Expense logged: ${merchant}, $${amountStr}, ${category}, ${date}`;
-            const blocks = [
-              {
-                type: "section" as const,
-                text: {
-                  type: "mrkdwn" as const,
-                  text: `💰 *Expense logged to ${shoot.name}*\n${merchant} — $${amountStr} · ${category} · ${date}${notes ? `\n_${notes}_` : ""}`,
+        // Notify the shoot channel in background so DM latency is driven by the Sheets write.
+        void (async () => {
+          try {
+            const shoot = await getShoot(shootId);
+            if (shoot?.slackChannelId) {
+              const amountStr =
+                typeof amount === "number" ? amount.toFixed(2) : String(amount);
+              const fallbackText = `Expense logged: ${merchant}, $${amountStr}, ${category}, ${date}`;
+              const blocks = [
+                {
+                  type: "section" as const,
+                  text: {
+                    type: "mrkdwn" as const,
+                    text: `💰 *Expense logged to ${shoot.name}*\n${merchant} — $${amountStr} · ${category} · ${date}${notes ? `\n_${notes}_` : ""}`,
+                  },
                 },
-              },
-            ];
-            await postToChannel(
-              shoot.slackChannelId,
-              userId,
-              blocks,
-              fallbackText
+              ];
+              await postToChannel(
+                shoot.slackChannelId,
+                userId,
+                blocks,
+                fallbackText
+              );
+              console.log(
+                `${logPrefix} logExpense -> posted to shoot channel ${shoot.slackChannelId}`
+              );
+            }
+          } catch (postErr) {
+            console.warn(
+              `${logPrefix} logExpense -> failed to post to shoot channel:`,
+              postErr
             );
-            console.log(`${logPrefix} logExpense -> posted to shoot channel ${shoot.slackChannelId}`);
           }
-        } catch (postErr) {
-          console.warn(`${logPrefix} logExpense -> failed to post to shoot channel:`, postErr);
-        }
+        })();
 
         console.log(`${logPrefix} logExpense -> success (${merchant} $${amount})`);
         return JSON.stringify({

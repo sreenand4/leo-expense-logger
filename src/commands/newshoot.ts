@@ -103,40 +103,38 @@ export function registerNewShootCommand(app: App): void {
       return;
     }
 
-    console.log("[NewShoot] [2/5] channel created, inviting user...", {
+    console.log("[NewShoot] [2/5] channel created, inviting user + creating sheet...", {
       channelId,
     });
 
-    // 5. Invite the user who ran the command to the channel
-    try {
-      await client.conversations.invite({
+    // 5-6. Invite user and create shoot sheet in parallel to reduce total setup time.
+    await updatePlaceholder("Creating Google Sheet…");
+    const [inviteResult, sheetResult] = await Promise.allSettled([
+      client.conversations.invite({
         channel: channelId,
         users: command.user_id,
-      });
-    } catch (err) {
-      logger.error(err);
+      }),
+      sheets.createShootSheet(command.user_id, rawName),
+    ]);
+
+    if (inviteResult.status === "rejected") {
+      logger.error(inviteResult.reason);
       // Don't block — channel and sheet still work; user can join manually
     }
 
-    console.log("[NewShoot] [3/5] user invited, creating sheet...");
-
-    // 6. Create shoot sheet
-    await updatePlaceholder("Creating Google Sheet…");
     let sheetId: string;
     let sheetUrl: string;
-    try {
-      const sheet = await sheets.createShootSheet(command.user_id, rawName);
-      sheetId = sheet.sheetId;
-      sheetUrl = sheet.sheetUrl;
-    } catch (err) {
-      logger.error(err);
+    if (sheetResult.status === "rejected") {
+      logger.error(sheetResult.reason);
       await updatePlaceholder(
         "The channel was created but the expense sheet couldn’t be created. Check the server logs."
       );
       return;
     }
+    sheetId = sheetResult.value.sheetId;
+    sheetUrl = sheetResult.value.sheetUrl;
 
-    console.log("[NewShoot] [4/5] sheet created, saving shoot in Firestore...");
+    console.log("[NewShoot] [3/5] sheet created, saving shoot in Firestore...");
 
     // 7. Save shoot to Firestore | 8. Set as active shoot
     await updatePlaceholder("Setting as your active shoot…");
@@ -157,7 +155,7 @@ export function registerNewShootCommand(app: App): void {
       return;
     }
 
-    console.log("[NewShoot] [5/5] shoot saved and set active, posting welcome message...", {
+    console.log("[NewShoot] [4/5] shoot saved and set active, posting welcome message...", {
       channelId,
       shootId,
     });
