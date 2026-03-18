@@ -1,7 +1,7 @@
 import { App } from "@slack/bolt";
 import * as firestore from "../services/firestore";
 import * as sheets from "../services/sheets";
-import { archiveChannel, postEphemeral, postToChannel } from "../services/slack";
+import { postEphemeral } from "../services/slack";
 import { requireOnboarded } from "../utils/slack";
 
 function isArchiveNonFatalError(err: unknown): boolean {
@@ -80,7 +80,7 @@ function buildSummaryBlocks(
 
 export function registerWrapShootCommand(app: App): void {
   // ----- /wrapshoot slash command: post confirmation with buttons -----
-  app.command("/wrapshoot", async ({ ack, command, respond }) => {
+  app.command("/wrapshoot", async ({ ack, command, respond, client }) => {
     await ack();
 
     // eslint-disable-next-line no-console
@@ -161,7 +161,11 @@ export function registerWrapShootCommand(app: App): void {
     ];
 
     const confirmText = `Wrap up "${shoot.name}"? This will archive the channel, lock the sheet, and clear your active shoot.`;
-    await postToChannel(command.channel_id, confirmBlocks, confirmText);
+    await client.chat.postMessage({
+      channel: command.channel_id,
+      text: confirmText,
+      blocks: confirmBlocks as never,
+    });
   });
 
   // ----- Cancel button: update message, remove buttons -----
@@ -283,14 +287,20 @@ export function registerWrapShootCommand(app: App): void {
 
     // Post farewell to shoot's Slack channel
     try {
-      await postToChannel(shoot.slackChannelId, summaryBlocks, summaryText);
+      await client.chat.postMessage({
+        channel: shoot.slackChannelId,
+        text: summaryText,
+        blocks: summaryBlocks as never,
+      });
     } catch (postErr) {
       logger.warn("Failed to post farewell to shoot channel:", postErr);
     }
 
     // Archive channel (best-effort)
     try {
-      await archiveChannel(shoot.slackChannelId);
+      await client.conversations.archive({
+        channel: shoot.slackChannelId,
+      });
     } catch (err) {
       logger.error("Archive channel failed:", err);
       // Continue anyway

@@ -1,14 +1,6 @@
 import { App } from "@slack/bolt";
 import * as firestore from "../services/firestore";
 import * as sheets from "../services/sheets";
-import {
-  createChannel,
-  inviteBotToChannel,
-  inviteUserToChannel,
-  pinMessage,
-  postEphemeral,
-  postToChannel,
-} from "../services/slack";
 import { requireOnboarded } from "../utils/slack";
 import { toSlackChannelName } from "../utils/helpers";
 
@@ -19,7 +11,7 @@ function isNameTakenError(err: unknown): boolean {
 }
 
 export function registerNewShootCommand(app: App): void {
-  app.command("/newshoot", async ({ ack, command, respond, logger }) => {
+  app.command("/newshoot", async ({ ack, command, respond, client, logger }) => {
     await ack();
 
     logger.info(`[NewShoot] command received`, {
@@ -42,11 +34,11 @@ export function registerNewShootCommand(app: App): void {
 
     // 0. Check if the command is being run in a direct message
     if (command.channel_name !== 'directmessage') {
-      await postEphemeral(
-        command.channel_id,
-        command.user_id,
-        "Please use this command in our DMs. Find me in your sidebar under Direct Messages."
-      );
+      await respond({
+        response_type: "ephemeral",
+        text:
+          "Please use this command in our DMs. Find me in your sidebar under Direct Messages.",
+      });
       return;
     }
 
@@ -64,12 +56,19 @@ export function registerNewShootCommand(app: App): void {
       return;
     }
 
-    await ephemeral(`[1/5] *${rawName}* passed sanitization check. Creating channel...`);
+    console.log("[NewShoot] [1/5] name passed sanitization, creating channel...");
 
     // 4. Create channel — wrap in try/catch for duplicate channel errors
     let channelId: string;
     try {
-      channelId = await createChannel(channelName);
+      const created = await client.conversations.create({
+        name: channelName,
+        is_private: false,
+      });
+      channelId = created.channel?.id as string;
+      if (!channelId) {
+        throw new Error("Slack API did not return a channel ID.");
+      }
     } catch (err) {
       if (isNameTakenError(err)) {
         await ephemeral("A channel with that name already exists in slack. Try another name.");
@@ -80,11 +79,13 @@ export function registerNewShootCommand(app: App): void {
       return;
     }
 
-    await ephemeral("[2/5] Channel created. Inviting bot and user to channel...");
+    console.log("[NewShoot] [2/5] channel created, inviting bot and user...", {
+      channelId,
+    });
 
     // 5. Invite bot to channel
     try {
-      await inviteBotToChannel(channelId);
+      await client.conversations.join({ channel: channelId });
     } catch (err) {
       logger.error(err);
       await ephemeral("The channel was created but I couldn’t join it. You can invite me manually.");
@@ -93,13 +94,16 @@ export function registerNewShootCommand(app: App): void {
 
     // 5b. Invite the user who ran the command to the channel
     try {
-      await inviteUserToChannel(channelId, command.user_id);
+      await client.conversations.invite({
+        channel: channelId,
+        users: command.user_id,
+      });
     } catch (err) {
       logger.error(err);
       // Don't block — channel and sheet still work; user can join manually
     }
 
-    await ephemeral("[3/5] Bot and user invited to channel. Creating sheet...");
+    console.log("[NewShoot] [3/5] bot and user invited, creating sheet...");
 
     // 6. Create shoot sheet
     let sheetId: string;
@@ -114,7 +118,7 @@ export function registerNewShootCommand(app: App): void {
       return;
     }
 
-    await ephemeral("[4/5] Sheet created. Saving shoot to Firestore and setting as active shoot...");
+    console.log("[NewShoot] [4/5] sheet created, saving shoot in Firestore...");
 
     // 7. Save shoot to Firestore | 8. Set as active shoot
     let shootId: string;
@@ -132,28 +136,39 @@ export function registerNewShootCommand(app: App): void {
       return;
     }
 
-    await ephemeral("[5/5] Shoot saved to Firestore and set as active shoot. Posting welcome message to channel...");
+    console.log("[NewShoot] [5/5] shoot saved and set active, posting welcome message...", {
+      channelId,
+      shootId,
+    });
 
     // 9. Post welcome Block Kit message to channel (includes sheet URL) and pin it
-    const welcomeTs = await postToChannel(
-      channelId,
-      [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `Shoot *${rawName}* is ready. Expense sheet: ${sheetUrl}`,
+    try {
+      const welcome = await client.chat.postMessage({
+        channel: channelId,
+        text: `Shoot ${rawName} is ready. Expense sheet: ${sheetUrl}`,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `Shoot *${rawName}* is ready. Expense sheet: ${sheetUrl}`,
+            },
           },
-        },
-      ],
-      `Shoot ${rawName} is ready. Expense sheet: ${sheetUrl}`
-    );
-    if (welcomeTs) {
-      try {
-        await pinMessage(channelId, welcomeTs);
-      } catch (pinErr) {
-        logger.warn("Failed to pin welcome message (channel still created):", pinErr);
+        ],
+      });
+      const welcomeTs = welcome.ts;
+      if (welcomeTs) {
+        try {
+          await client.pins.add({
+            channel: channelId,
+            timestamp: welcomeTs,
+          });
+        } catch (pinErr) {
+          logger.warn("Failed to pin welcome message (channel still created):", pinErr);
+        }
       }
+    } catch (postErr) {
+      logger.error("Failed to post welcome message to shoot channel:", postErr);
     }
 
     // 10. Final message: regular (non-ephemeral) so it's a visible, persistent reply (in DM or channel)
@@ -163,7 +178,10 @@ export function registerNewShootCommand(app: App): void {
       `• Expense sheet: ${sheetUrl}\n\n` +
       `This is now your active shoot. Just send me an expense or drop a receipt photo to start logging to ${rawName}`;
     try {
-      await postToChannel(command.channel_id, [], successText);
+      await client.chat.postMessage({
+        channel: command.channel_id,
+        text: successText,
+      });
     } catch (err) {
       logger.error("Failed to post success message:", err);
     }

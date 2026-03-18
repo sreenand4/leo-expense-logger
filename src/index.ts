@@ -68,7 +68,6 @@ const app = new App({
       botToken: SLACK_BOT_TOKEN,
     };
   },
-  // Slack strongly recommends enabling socket mode OR public HTTP; we're using HTTP here.
 });
 
 // Simple health check for Cloud Run, ngrok, and your own sanity.

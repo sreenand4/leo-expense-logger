@@ -1,22 +1,31 @@
 import { WebClient } from "@slack/web-api";
+import { getSlackInstallation, getUser } from "./firestore";
 
-let clientInstance: WebClient | null = null;
+async function getClientForUser(userId: string): Promise<WebClient> {
+  const user = await getUser(userId);
+  const workspaceId = user?.workspaceId;
 
-function getClient(): WebClient {
-  if (clientInstance) return clientInstance;
-  const token = process.env.SLACK_BOT_TOKEN;
-  if (!token) {
-    throw new Error("SLACK_BOT_TOKEN is not set in environment.");
+  if (workspaceId) {
+    const installation = await getSlackInstallation(workspaceId);
+    if (installation?.botToken) {
+      return new WebClient(installation.botToken);
+    }
   }
-  clientInstance = new WebClient(token);
-  return clientInstance;
+
+  const fallbackToken = process.env.SLACK_BOT_TOKEN;
+  if (!fallbackToken) {
+    throw new Error(
+      "No installation bot token found for user and SLACK_BOT_TOKEN is not set."
+    );
+  }
+  return new WebClient(fallbackToken);
 }
 
 /**
  * Create a public Slack channel. Returns the channel ID.
  */
 export async function createChannel(name: string): Promise<string> {
-  const result = await getClient().conversations.create({
+  const result = await new WebClient(process.env.SLACK_BOT_TOKEN).conversations.create({
     name,
     is_private: false,
   });
@@ -33,7 +42,7 @@ export async function createChannel(name: string): Promise<string> {
  * the bot whose token is used joins; no user ID needed.
  */
 export async function inviteBotToChannel(channelId: string): Promise<void> {
-  await getClient().conversations.join({
+  await new WebClient(process.env.SLACK_BOT_TOKEN).conversations.join({
     channel: channelId,
   });
 }
@@ -42,7 +51,7 @@ export async function inviteBotToChannel(channelId: string): Promise<void> {
  * Archive a Slack channel. Uses conversations.archive.
  */
 export async function archiveChannel(channelId: string): Promise<void> {
-  await getClient().conversations.archive({
+  await new WebClient(process.env.SLACK_BOT_TOKEN).conversations.archive({
     channel: channelId,
   });
 }
@@ -54,7 +63,8 @@ export async function inviteUserToChannel(
   channelId: string,
   userId: string
 ): Promise<void> {
-  await getClient().conversations.invite({
+  const client = await getClientForUser(userId);
+  await client.conversations.invite({
     channel: channelId,
     users: userId,
   });
@@ -66,10 +76,13 @@ export async function inviteUserToChannel(
  */
 export async function postToChannel(
   channelId: string,
+  userId: string | null,
   blocks: unknown[],
   text: string
 ): Promise<string | undefined> {
-  const result = await getClient().chat.postMessage({
+  const client =
+    userId != null ? await getClientForUser(userId) : new WebClient(process.env.SLACK_BOT_TOKEN);
+  const result = await client.chat.postMessage({
     channel: channelId,
     text,
     blocks,
@@ -85,7 +98,7 @@ export async function pinMessage(
   channelId: string,
   messageTs: string
 ): Promise<void> {
-  await getClient().pins.add({
+  await new WebClient(process.env.SLACK_BOT_TOKEN).pins.add({
     channel: channelId,
     timestamp: messageTs,
   });

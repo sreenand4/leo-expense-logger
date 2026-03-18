@@ -157,6 +157,7 @@ router.get("/install-success", (_req, res) => {
               alt="Leo successfully installed"
               class="hero-image"
             />
+            <a href="https://app.slack.com/">Go to Slack <span class="arrow">→</span></a>
         </div>
       </body>
     </html>

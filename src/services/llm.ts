@@ -358,7 +358,12 @@ async function executeTool(
                 },
               },
             ];
-            await postToChannel(shoot.slackChannelId, blocks, fallbackText);
+            await postToChannel(
+              shoot.slackChannelId,
+              userId,
+              blocks,
+              fallbackText
+            );
             // eslint-disable-next-line no-console
             console.log(`${logPrefix} logExpense -> posted to shoot channel ${shoot.slackChannelId}`);
           }

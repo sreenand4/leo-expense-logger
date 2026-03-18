@@ -1,11 +1,11 @@
 import { App } from "@slack/bolt";
 import * as firestore from "../services/firestore";
-import { postEphemeral, postToChannel } from "../services/slack";
+import { postEphemeral } from "../services/slack";
 import { requireOnboarded } from "../utils/slack";
 import { toSlackChannelName } from "../utils/helpers";
 
 export function registerSetShootCommand(app: App): void {
-  app.command("/setshoot", async ({ ack, command, respond }) => {
+  app.command("/setshoot", async ({ ack, command, respond, client }) => {
     await ack();
 
     // eslint-disable-next-line no-console
@@ -22,32 +22,32 @@ export function registerSetShootCommand(app: App): void {
 
     // 2. DM-only check
     if (command.channel_name !== "directmessage") {
-      await postEphemeral(
-        command.channel_id,
-        command.user_id,
-        "Please use Slate commands from our DM. Find me in your sidebar under Direct Messages."
-      );
+      await respond({
+        response_type: "ephemeral",
+        text:
+          "Please use Slate commands from our DM. Find me in your sidebar under Direct Messages.",
+      });
       return;
     }
 
     // 3. Validate input
     if (!command.text?.trim()) {
-      await postEphemeral(
-        command.channel_id,
-        command.user_id,
-        "Please provide a shoot name. Example: `/setshoot nike-campaign-march`"
-      );
+      await respond({
+        response_type: "ephemeral",
+        text:
+          "Please provide a shoot name. Example: `/setshoot nike-campaign-march`",
+      });
       return;
     }
 
     const rawName = command.text.trim();
     const normalizedName = toSlackChannelName(rawName);
     if (!normalizedName) {
-      await postEphemeral(
-        command.channel_id,
-        command.user_id,
-        "That name isn't valid. Use letters, numbers, hyphens, or underscores."
-      );
+      await respond({
+        response_type: "ephemeral",
+        text:
+          "That name isn't valid. Use letters, numbers, hyphens, or underscores.",
+      });
       return;
     }
 
@@ -59,18 +59,16 @@ export function registerSetShootCommand(app: App): void {
 
     if (!shoot) {
       if (activeShoots.length === 0) {
-        await postEphemeral(
-          command.channel_id,
-          command.user_id,
-          "You have no active shoots. Run `/newshoot [name]` to create one."
-        );
+        await respond({
+          response_type: "ephemeral",
+          text: "You have no active shoots. Run `/newshoot [name]` to create one.",
+        });
       } else {
         const list = activeShoots.map((s) => `• ${s.name}`).join("\n");
-        await postEphemeral(
-          command.channel_id,
-          command.user_id,
-          `No active shoot found with that name. Your active shoots:\n${list}\n\n`
-        );
+        await respond({
+          response_type: "ephemeral",
+          text: `No active shoot found with that name. Your active shoots:\n${list}\n\n`,
+        });
       }
       return;
     }
@@ -99,6 +97,10 @@ export function registerSetShootCommand(app: App): void {
 
     const text = `✅ Active shoot switched to ${shoot.name}. All expenses you log will go here until you switch again.`;
 
-    await postToChannel(command.channel_id, blocks, text);
+    await client.chat.postMessage({
+      channel: command.channel_id,
+      text,
+      blocks: blocks as never,
+    });
   });
 }
