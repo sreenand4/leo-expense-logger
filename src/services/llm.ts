@@ -5,6 +5,7 @@ import {
   getAllShoots,
   getShoot,
   incrementExpenseCount,
+  setActiveShoot,
 } from "./firestore";
 import { postToChannel } from "./slack";
 import { appendExpenseRow, getSheetSummary } from "./sheets";
@@ -26,15 +27,27 @@ Your responses will be shown in Slack.
 
 ---
 
-## Slash Command Redirects
-Some actions must be performed using slash commands — you cannot perform these yourself. When you detect the user's intent matches one of the following, do not attempt to execute it. Instead, respond with exactly the redirect message shown.
-
+## HARD Slash Command Redirects
 - Starting a new shoot → "To start a new shoot, use: /newshoot [shoot name]"
-- Switching to a different shoot → "To switch shoots, use: /setshoot [shoot name]"  
 - Wrapping up / finishing / archiving a shoot → "To wrap up a shoot, use: /wrapshoot"
 
-Trigger phrases to watch for: "new shoot", "start a shoot", "create a shoot", "switch to", "change shoot", "wrap up", "wrap this", "finish the shoot", "done with this shoot", "archive", "close out the shoot".
+Some actions must be performed using slash commands and only a slash command — you cannot perform these yourself. When you detect the user's intent matches one of the following, do not attempt to execute it. Instead, respond with exactly the redirect message shown.
+Trigger phrases to watch for: "new shoot", "start a shoot", "create a shoot", "wrap up", "wrap this", "finish the shoot", "done with this shoot", "archive", "close out the shoot".
 
+## SOFT Slash Command Usage
+- Switching to a different shoot → "To switch shoots, use: /setshoot [shoot name]"
+
+These are some actions that are supported by the slash commands, but you can also perform them by calling the respective tools.
+If a user indicates an intent to switch shoots (ie "switch to", "change shoot") you should:
+1. Call getActiveShoot and getAllShoots first.
+2. Extract the destination text from the user's message and match it against shoot names from getAllShoots.
+3. Match conservatively (name-based only, no semantic inference):
+   - A match requires direct character/token overlap with the destination text.
+   - Allow exact, clear prefix, or minor typo match only.
+   - Never infer region/country/category relationships.
+4. If there is not exactly one safe match, respond with: "Please provide a valid shoot name to switch to. Your options are [list of shoot names - current active shoot if one is active]".
+5. If there is exactly one safe, match and it is active, make sure it is not already the result of earlier getActiveShoot call. If it is, respond with "You are already on that shoot. No need to switch." and do not call setActiveShoot.
+6. If there is exactly one safe, match and it is active, and it is not already the result of earlier getActiveShoot call, call setActiveShoot with its shootId.
 ---
 
 ## Tool Usage Rules
@@ -42,9 +55,9 @@ Trigger phrases to watch for: "new shoot", "start a shoot", "create a shoot", "s
 **Never call tools for:** greetings, small talk, off-topic messages, or slash command redirects. Respond directly.
 
 **Always follow this order when tools are needed:**
-1. Call getActiveShoot first — every time, before any other tool. This will give you context about their current shoot if they have one or none.
+1. Start by getting shoot context. For switching intents, call both getActiveShoot and getAllShoots before any write action. For other intents, call getActiveShoot first.
 2. If receipt URLs are present, call parseReceiptWithOCR for each URL next.
-3. Only then call logExpense or getSheetSummary.
+3. Only then call logExpense, getSheetSummary or setActiveShoot.
 
 ---
 
@@ -56,7 +69,7 @@ Trigger phrases to watch for: "new shoot", "start a shoot", "create a shoot", "s
 - Parse every receipt URL with parseReceiptWithOCR before logging anything.
 - GOOD result: merchant and amount are clearly identifiable → log the expense, include receiptUrls in the logExpense call.
 - BAD result: text is garbled, missing merchant or amount, or nonsensical → do not log. Reply: "That receipt was too unclear to read. Could you retake the photo or type the details?"
-- PARTIAL result: some fields readable but amount or merchant is missing → do not guess. State exactly what you could and couldn not read and ask for a clearer photo of the receipt to re-parse.
+- PARTIAL result: some fields readable but amount or merchant is missing → do not guess. State exactly what you could and could not read and ask for a clearer photo of the receipt to re-parse.
 - Multiple receipts → log each as a separate expense row.
 - Always include receiptUrls in logExpense when images were provided.
 
@@ -105,7 +118,7 @@ const tools: Anthropic.Tool[] = [
   {
     name: "getAllShoots",
     description:
-      "Gets all active shoots for the photographer. Use this only if they ask about multiple shoots or which shoots they have open.",
+      "Gets all active shoots for the photographer. By active here we mean unarchived shoots. Use this when user asks about multiple shoots, or when switching shoots so you can match the requested destination name safely.",
     input_schema: {
       type: "object" as const,
       properties: {},
@@ -124,6 +137,25 @@ const tools: Anthropic.Tool[] = [
         },
       },
       required: ["sheetId"],
+    },
+  },
+  {
+    name: "setActiveShoot",
+    description:
+      "Sets the active shoot for the photographer. Use this to switch between different shoots.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        userId: {
+          type: "string" as const,
+          description: "The user ID to set the active shoot for",
+        },
+        shootId: {
+          type: "string" as const,
+          description: "The unique Shoot document ID representing the destination Shoot object",
+        },
+      },
+      required: ["userId", "shootId"],
     },
   },
   {
@@ -201,6 +233,13 @@ async function executeTool(
         }
         console.log(`${logPrefix} getActiveShoot -> success (shoot: ${result.name})`);
         return JSON.stringify(result);
+      }
+      case "setActiveShoot": {
+        await updatePlaceholder?.("Setting active shoot…");
+        const shootId = input.shootId as string;
+        await setActiveShoot(userId, shootId);
+        console.log(`${logPrefix} setActiveShoot -> success (shootId: ${shootId})`);
+        return JSON.stringify({ success: true, shootId });
       }
       case "getAllShoots": {
         await updatePlaceholder?.("Getting all shoots…");
