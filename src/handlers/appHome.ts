@@ -4,10 +4,10 @@ import { buildDashboardBlocks } from "../services/dashboard";
 import { getConnectGoogleBlocks } from "../utils/slack";
 
 export function registerAppHomeHandler(app: App): void {
-  app.event("app_home_opened", async ({ event, client, logger }) => {
+  app.event("app_home_opened", async ({ event, client, logger, context }) => {
     try {
       const userId = event.user;
-      const user = await getOrCreateUser(userId, userId);
+      const user = await getOrCreateUser(userId, userId, context.teamId);
 
       if (user.onboardingStatus === "pending_google") {
         await client.views.publish({

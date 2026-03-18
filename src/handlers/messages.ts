@@ -7,7 +7,7 @@ import { getConnectGoogleBlocks, getConnectGoogleMessage } from "../utils/slack"
 const HANDLER_LOG = "[Handler]";
 
 export function registerMessageHandler(app: App): void {
-  app.message(async ({ message, client, logger }) => {
+  app.message(async ({ message, client, logger, context }) => {
     let placeholder: { ts?: string } | null = null;
     try {
       if (message.channel_type !== "im") {
@@ -35,7 +35,8 @@ export function registerMessageHandler(app: App): void {
 
       const user = await getOrCreateUser(
         userId,
-        (msg.user_name as string) ?? userId
+        (msg.user_name as string) ?? userId,
+        context.teamId
       );
 
       if (user.onboardingStatus !== "ready") {

@@ -5,7 +5,7 @@ export function registerHelpCommand(app: App): void {
   app.command("/help", async ({ ack, command, respond, logger }) => {
     await ack();
 
-    const isReady = await requireOnboarded(command.user_id, respond);
+    const isReady = await requireOnboarded(command.user_id, command.team_id, respond);
     if (!isReady) return;
 
     try {

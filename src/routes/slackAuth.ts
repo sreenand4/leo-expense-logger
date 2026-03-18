@@ -51,7 +51,6 @@ router.get("/slack/oauth_redirect", async (req, res) => {
 
     const workspaceId = result.team?.id;
     const workspaceName = result.team?.name ?? "Unknown workspace";
-    const enterpriseId = result.enterprise?.id ?? null;
     const botToken = result.access_token;
     const botUserId = result.bot_user_id;
     const installedBy = result.authed_user?.id ?? "unknown";
@@ -69,7 +68,6 @@ router.get("/slack/oauth_redirect", async (req, res) => {
     await saveSlackInstallation({
       workspaceId,
       workspaceName,
-      enterpriseId,
       botToken,
       botUserId,
       installedBy,

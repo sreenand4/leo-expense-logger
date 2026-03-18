@@ -7,6 +7,7 @@ RUN npm ci
 
 COPY tsconfig.json ./
 COPY src ./src
+COPY assets ./assets
 
 RUN npm run build
 
@@ -21,6 +22,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=build /app/dist ./dist
+COPY assets ./assets
 
 EXPOSE 8080
 

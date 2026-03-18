@@ -8,7 +8,7 @@ export function registerSetShootCommand(app: App): void {
   app.command("/setshoot", async ({ ack, command, respond }) => {
     await ack();
 
-    const isReady = await requireOnboarded(command.user_id, respond);
+    const isReady = await requireOnboarded(command.user_id, command.team_id, respond);
     if (!isReady) return;
 
     // 2. DM-only check

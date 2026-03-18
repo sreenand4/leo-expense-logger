@@ -2,6 +2,8 @@ import { Request, Response, Router } from "express";
 import { google } from "googleapis";
 import { WebClient } from "@slack/web-api";
 import {
+  getSlackInstallation,
+  getUser,
   setGoogleRefreshToken,
   setOnboardingStatus,
 } from "../services/firestore";
@@ -81,10 +83,30 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
     await setGoogleRefreshToken(userId, tokens.refresh_token);
     await setOnboardingStatus(userId, "ready");
 
-    const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
+    // Multi-tenant: use the workspace's bot token when available.
+    let botToken = process.env.SLACK_BOT_TOKEN;
+    const user = await getUser(userId);
+    if (user?.workspaceId) {
+      const installation = await getSlackInstallation(user.workspaceId);
+      if (installation?.botToken) {
+        botToken = installation.botToken;
+      }
+    }
+
+    const slackClient = new WebClient(botToken);
+
+    // `chat.postMessage` requires a channel ID (D...), not a user ID (U...).
+    const im = await slackClient.conversations.open({
+      users: userId,
+      return_im: true,
+    });
+    const dmChannel = im.channel?.id;
+    if (!dmChannel) {
+      throw new Error("Failed to open DM channel with user.");
+    }
 
     await slackClient.chat.postMessage({
-      channel: userId,
+      channel: dmChannel,
       text: "You're connected! Run /newshoot to create your first shoot.",
       blocks: [
         {

@@ -22,7 +22,7 @@ export function registerNewShootCommand(app: App): void {
   app.command("/newshoot", async ({ ack, command, respond, logger }) => {
     await ack();
 
-    const isReady = await requireOnboarded(command.user_id, respond);
+    const isReady = await requireOnboarded(command.user_id, command.team_id, respond);
     if (!isReady) return;
 
     // Helper: ephemeral progress/error (avoids burning the single-use response_url)

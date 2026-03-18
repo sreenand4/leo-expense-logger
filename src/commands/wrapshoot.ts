@@ -83,7 +83,7 @@ export function registerWrapShootCommand(app: App): void {
   app.command("/wrapshoot", async ({ ack, command, respond }) => {
     await ack();
 
-    const isReady = await requireOnboarded(command.user_id, respond);
+    const isReady = await requireOnboarded(command.user_id, command.team_id, respond);
     if (!isReady) return;
 
     if (command.channel_name !== "directmessage") {

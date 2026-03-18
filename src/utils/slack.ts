@@ -20,15 +20,8 @@ export function getConnectGoogleBlocks(
       type: "header",
       text: {
         type: "plain_text",
-        text: "📋 Slate",
+        text: "Hey, I'm Leo!",
         emoji: true,
-      },
-    },
-    {
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: "Welcome to Slate — your shoot expense logger.\n\nSlate helps you log expenses for every shoot, right from Slack. Receipt photos, quick text entries, spending summaries — all in your DMs.",
       },
     },
     {
@@ -38,7 +31,14 @@ export function getConnectGoogleBlocks(
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*Before you can start, connect your Google account.*\nSlate needs access to Google Drive and Sheets to create and manage your expense sheets.",
+        text: "Here to help you log expenses for your shoots right from Slack. DM me receipt photos, quick transaction entries (Uber $35), or ask about your spending summaries!",
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*Before you can start, connect your Google Drive so Leo can create and manage your expense sheets.",
       },
     },
     {
@@ -48,7 +48,7 @@ export function getConnectGoogleBlocks(
           type: "button",
           text: {
             type: "plain_text",
-            text: "🔗 Connect Google Account",
+            text: "Continue with Google",
             emoji: true,
           },
           style: "primary",
@@ -62,7 +62,7 @@ export function getConnectGoogleBlocks(
       elements: [
         {
           type: "mrkdwn",
-          text: "You will be redirected to Google to authorize access. Slate only requests Drive and Sheets permissions.",
+          text: "You will be redirected to auth.google.com to authorize access.",
         },
       ],
     },
@@ -71,10 +71,11 @@ export function getConnectGoogleBlocks(
 
 export async function requireOnboarded(
   userId: string,
+  workspaceId: string | undefined,
   // Deliberately loose typing here so we can pass Bolt's RespondFn without importing its types.
   respond: (message: any) => Promise<void>
 ): Promise<boolean> {
-  const user = await getOrCreateUser(userId, userId);
+  const user = await getOrCreateUser(userId, userId, workspaceId);
 
   if (user.onboardingStatus !== "ready") {
     await respond({

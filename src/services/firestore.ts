@@ -1,18 +1,19 @@
-import path from "path";
 import { Firestore, FieldValue, Timestamp } from "@google-cloud/firestore";
 
 function getDb(): Firestore {
-  const credentialsPath = process.env.GCP_CREDENTIALS;
+  const credentials = process.env.GCP_CREDENTIALS;
   const projectId = process.env.GCP_PROJECT_ID;
 
-  if (!credentialsPath) throw new Error("GCP_CREDENTIALS is not set");
+  if (!credentials) throw new Error("GCP_CREDENTIALS is not set");
   if (!projectId) throw new Error("GCP_PROJECT_ID is not set");
 
-  const keyFilename = path.isAbsolute(credentialsPath)
-    ? credentialsPath
-    : path.resolve(process.cwd(), credentialsPath);
+  // Support both JSON-key-in-env (Cloud Run) and file path (local dev).
+  if (credentials.trim().startsWith("{")) {
+    const parsed = JSON.parse(credentials);
+    return new Firestore({ projectId, credentials: parsed });
+  }
 
-  return new Firestore({ keyFilename, projectId });
+  return new Firestore({ projectId, keyFilename: credentials });
 }
 
 // --- COLLECTIONS ---
@@ -26,6 +27,7 @@ const INSTALLATIONS_COLLECTION = "installations";
 export interface User {
   id: string;
   slackUserId: string;
+  workspaceId: string | null;
   displayName: string;
   activeShootId: string | null;
   onboardingStatus: "pending_google" | "ready";
@@ -50,6 +52,7 @@ export interface Shoot {
 
 interface UserDoc {
   slackUserId: string;
+  workspaceId?: string | null;
   displayName: string;
   activeShootId: string | null;
   onboardingStatus?: "pending_google" | "ready";
@@ -74,7 +77,6 @@ interface ShootDoc {
 interface InstallationDoc {
   workspaceId: string;
   workspaceName: string;
-  enterpriseId: string | null;
   botToken: string;
   botUserId: string;
   installedBy: string;
@@ -85,6 +87,7 @@ function toUser(id: string, d: UserDoc): User {
   return {
     id,
     slackUserId: d.slackUserId,
+    workspaceId: d.workspaceId ?? null,
     displayName: d.displayName,
     activeShootId: d.activeShootId ?? null,
     onboardingStatus: d.onboardingStatus ?? "pending_google",
@@ -117,16 +120,36 @@ function toShoot(id: string, d: ShootDoc): Shoot {
  */
 export async function getOrCreateUser(
   slackUserId: string,
-  displayName: string
+  displayName: string,
+  workspaceId?: string
 ): Promise<User> {
   const ref = getDb().collection(USERS_COLLECTION).doc(slackUserId);
   const snap = await ref.get();
   if (snap.exists) {
-    return toUser(snap.id, snap.data() as UserDoc);
+    const existing = snap.data() as UserDoc;
+    const updates: Partial<UserDoc> = {};
+
+    if (workspaceId && !existing.workspaceId) {
+      updates.workspaceId = workspaceId;
+    }
+    if (
+      displayName &&
+      (!existing.displayName || existing.displayName === slackUserId)
+    ) {
+      updates.displayName = displayName;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await ref.set(updates, { merge: true });
+      return toUser(snap.id, { ...existing, ...updates });
+    }
+
+    return toUser(snap.id, existing);
   }
   const now = Timestamp.now();
   const newData: UserDoc = {
     slackUserId,
+    workspaceId: workspaceId ?? null,
     displayName,
     activeShootId: null,
     onboardingStatus: "pending_google",

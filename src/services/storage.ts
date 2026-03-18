@@ -3,17 +3,19 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
 function getStorageClient(): Storage {
-  const credentialsPath = process.env.GCP_CREDENTIALS;
+  const credentials = process.env.GCP_CREDENTIALS;
   const projectId = process.env.GCP_PROJECT_ID;
 
-  if (!credentialsPath) throw new Error("GCP_CREDENTIALS is not set");
+  if (!credentials) throw new Error("GCP_CREDENTIALS is not set");
   if (!projectId) throw new Error("GCP_PROJECT_ID is not set");
 
-  const keyFilename = path.isAbsolute(credentialsPath)
-    ? credentialsPath
-    : path.resolve(process.cwd(), credentialsPath);
+  // Support both JSON-key-in-env (Cloud Run) and file path (local dev).
+  if (credentials.trim().startsWith("{")) {
+    const parsed = JSON.parse(credentials);
+    return new Storage({ projectId, credentials: parsed });
+  }
 
-  return new Storage({ keyFilename, projectId });
+  return new Storage({ projectId, keyFilename: credentials });
 }
 
 export async function uploadReceiptImage(
