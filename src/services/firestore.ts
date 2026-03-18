@@ -4,8 +4,13 @@ function getDb(): Firestore {
   const credentials = process.env.GCP_CREDENTIALS;
   const projectId = process.env.GCP_PROJECT_ID;
 
-  if (!credentials) throw new Error("GCP_CREDENTIALS is not set");
   if (!projectId) throw new Error("GCP_PROJECT_ID is not set");
+
+  // If credentials are not provided, fall back to Application Default Credentials (ADC).
+  // This is the preferred setup on Cloud Run (attach a service account with the right IAM).
+  if (!credentials || credentials.trim().length === 0) {
+    return new Firestore({ projectId });
+  }
 
   // Support both JSON-key-in-env (Cloud Run) and file path (local dev).
   if (credentials.trim().startsWith("{")) {

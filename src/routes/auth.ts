@@ -51,10 +51,74 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
 
   if (error) {
     res.status(400).send(`
-      <html><body style="font-family:sans-serif;text-align:center;padding:60px">
-        <h2>❌ Authorization cancelled</h2>
-        <p>You declined access. You can close this tab and try again from Slack.</p>
-      </body></html>
+      <html>
+        <head>
+          <title>Authorization cancelled</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            :root {
+              --background: #dae4a3;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              margin: 0;
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: var(--background);
+              color: var(--foreground);
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                sans-serif;
+            }
+
+            .wrap {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 15px 16px;
+              width: 100%;
+              flex-direction: column;
+            }
+
+            .card {
+              text-align: center;
+              max-width: 520px;
+            }
+
+            h1 {
+              margin: 0 0 12px 0;
+              font-size: clamp(26px, 4vw, 32px);
+              letter-spacing: 0.03em;
+            }
+
+            p {
+              margin: 0 0 4px 0;
+              font-size: 15px;
+              line-height: 1.5;
+              color: rgba(0, 0, 0, 0.75);
+            }
+
+            .hint {
+              margin-top: 16px;
+              font-size: 13px;
+              opacity: 0.8;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <div class="card">
+              <h1>❌ Authorization cancelled</h1>
+              <p>You declined access. You can close this tab and try again from Slack.</p>
+            </div>
+          </div>
+        </body>
+      </html>
     `);
     return;
   }
@@ -72,10 +136,74 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
 
     if (!tokens.refresh_token) {
       res.status(400).send(`
-        <html><body style="font-family:sans-serif;text-align:center;padding:60px">
-          <h2>⚠️ Authorization incomplete</h2>
-          <p>Google did not return a refresh token. Please return to Slack and try connecting again.</p>
-        </body></html>
+        <html>
+          <head>
+            <title>Authorization incomplete</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <style>
+              :root {
+                --background: #dae4a3;
+              }
+
+              * {
+                box-sizing: border-box;
+              }
+
+              body {
+                margin: 0;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: var(--background);
+                color: var(--foreground);
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                  sans-serif;
+              }
+
+              .wrap {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 15px 16px;
+                width: 100%;
+                flex-direction: column;
+              }
+
+              .card {
+                text-align: center;
+                max-width: 520px;
+              }
+
+              h1 {
+                margin: 0 0 12px 0;
+                font-size: clamp(26px, 4vw, 32px);
+                letter-spacing: 0.03em;
+              }
+
+              p {
+                margin: 0 0 4px 0;
+                font-size: 15px;
+                line-height: 1.5;
+                color: rgba(0, 0, 0, 0.75);
+              }
+
+              .hint {
+                margin-top: 16px;
+                font-size: 13px;
+                opacity: 0.8;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="wrap">
+              <div class="card">
+                <h1>⚠️ Authorization incomplete</h1>
+                <p>Google did not return a refresh token. Please return to Slack and try connecting again.</p>
+              </div>
+            </div>
+          </body>
+        </html>
       `);
       return;
     }
@@ -148,20 +276,148 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
     });
 
     res.status(200).send(`
-      <html><body style="font-family:sans-serif;text-align:center;padding:60px">
-        <h2>✅ Google account connected!</h2>
-        <p>You can close this tab and return to Slack.</p>
-        <p style="color:#888;font-size:14px">Slate now has access to your Google Drive and Sheets.</p>
-      </body></html>
+      <html>
+        <head>
+          <title>Google account connected</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            :root {
+              --background: #dae4a3;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              margin: 0;
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: var(--background);
+              color: var(--foreground);
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                sans-serif;
+            }
+
+            .wrap {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 15px 16px;
+              width: 100%;
+              flex-direction: column;
+            }
+
+            .card {
+              text-align: center;
+              max-width: 520px;
+            }
+
+            h1 {
+              margin: 0 0 12px 0;
+              font-size: clamp(26px, 4vw, 32px);
+              letter-spacing: 0.03em;
+            }
+
+            p {
+              margin: 0 0 4px 0;
+              font-size: 15px;
+              line-height: 1.5;
+              color: rgba(0, 0, 0, 0.75);
+            }
+
+            .hint {
+              margin-top: 16px;
+              font-size: 13px;
+              opacity: 0.8;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <div class="card">
+              <h1>✅ Google account connected!</h1>
+              <p>You can close this tab and return to Slack.</p>
+              <p class="hint">Slate now has access to your Google Drive and Sheets.</p>
+            </div>
+          </div>
+        </body>
+      </html>
     `);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("OAuth callback error:", err);
     res.status(500).send(`
-      <html><body style="font-family:sans-serif;text-align:center;padding:60px">
-        <h2>❌ Something went wrong</h2>
-        <p>There was an error connecting your Google account. Please return to Slack and try again.</p>
-      </body></html>
+      <html>
+        <head>
+          <title>Google connection failed</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            :root {
+              --background: #dae4a3;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              margin: 0;
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: var(--background);
+              color: var(--foreground);
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                sans-serif;
+            }
+
+            .wrap {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 15px 16px;
+              width: 100%;
+              flex-direction: column;
+            }
+
+            .card {
+              text-align: center;
+              max-width: 520px;
+            }
+
+            h1 {
+              margin: 0 0 12px 0;
+              font-size: clamp(26px, 4vw, 32px);
+              letter-spacing: 0.03em;
+            }
+
+            p {
+              margin: 0 0 4px 0;
+              font-size: 15px;
+              line-height: 1.5;
+              color: rgba(0, 0, 0, 0.75);
+            }
+
+            .hint {
+              margin-top: 16px;
+              font-size: 13px;
+              opacity: 0.8;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <div class="card">
+              <h1>❌ Something went wrong</h1>
+              <p>There was an error connecting your Google account. Please return to Slack and try again.</p>
+            </div>
+          </div>
+        </body>
+      </html>
     `);
   }
 });

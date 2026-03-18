@@ -113,7 +113,8 @@ export async function postEphemeral(
   userId: string,
   text: string
 ): Promise<void> {
-  await getClient().chat.postEphemeral({
+  const client = await getClientForUser(userId);
+  await client.chat.postEphemeral({
     channel: channelId,
     user: userId,
     text,

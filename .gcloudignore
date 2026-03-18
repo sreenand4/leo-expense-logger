@@ -1,0 +1,23 @@
+# Keep Cloud Build upload small and secret-free.
+# (This file is used when running `gcloud builds submit` or `gcloud run deploy --source`.)
+
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+.env
+.env.*
+
+dist
+
+# Credentials / secrets (do not upload to Google Cloud)
+*credentials*.json
+*service-account*.json
+expense-logger-*.json
+
+# Cursor / IDE noise
+.cursor
+agent-transcripts
+terminals
+

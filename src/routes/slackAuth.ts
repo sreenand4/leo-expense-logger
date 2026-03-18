@@ -115,6 +115,7 @@ router.get("/install-success", (_req, res) => {
             justify-content: center;
             padding: 15px 16px;
             width: 100%;
+            flex-direction: column;
           }
 
           .card {
@@ -146,6 +147,14 @@ router.get("/install-success", (_req, res) => {
             margin-top: 16px;
             font-size: 13px;
             opacity: 0.8;
+          }
+
+          a {
+            margin-top: 16px;
+            text-align: center;
+            color: #000000;
+            text-decoration: none;
+            font-weight: 500;
           }
         </style>
       </head>

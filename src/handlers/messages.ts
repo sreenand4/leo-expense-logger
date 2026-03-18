@@ -6,6 +6,24 @@ import { getConnectGoogleBlocks, getConnectGoogleMessage } from "../utils/slack"
 
 const HANDLER_LOG = "[Handler]";
 
+function looksLikePng(buf: Buffer): boolean {
+  return (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a
+  );
+}
+
+function looksLikeJpeg(buf: Buffer): boolean {
+  return buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+}
+
 export function registerMessageHandler(app: App): void {
   app.message(async ({ message, client, logger, context }) => {
     let placeholder: { ts?: string } | null = null;
@@ -85,11 +103,37 @@ export function registerMessageHandler(app: App): void {
 
               if (!res.ok) return null;
 
+              const contentType = res.headers.get("content-type") ?? undefined;
+              const contentLength = res.headers.get("content-length") ?? undefined;
+              const finalUrl = (res as unknown as { url?: string }).url;
+
               const buffer = Buffer.from(await res.arrayBuffer());
+
+              const headerHex = buffer.subarray(0, 16).toString("hex");
+              const isImageHeader = looksLikePng(buffer) || looksLikeJpeg(buffer);
+              const isImageContentType = (contentType ?? file.mimetype ?? "").startsWith(
+                "image/"
+              );
+
+              // eslint-disable-next-line no-console
+              console.log(
+                `${HANDLER_LOG} Downloaded file id=${file.id ?? "?"} name=${file.name ?? "?"} status=${res.status} content-type=${contentType ?? "?"} content-length=${contentLength ?? "?"} bytes=${buffer.length} headerHex=${headerHex} url=${finalUrl ?? file.url_private}`
+              );
+
+              // If Slack auth/redirect issues happen on Cloud Run, we can end up with HTML (200 OK).
+              // Reject uploads that don't look like an image to avoid poisoning GCS with HTML.
+              if (!isImageContentType || !isImageHeader) {
+                // eslint-disable-next-line no-console
+                console.log(
+                  `${HANDLER_LOG} Skipping upload: not a valid image payload (content-type=${contentType ?? file.mimetype ?? "?"} headerHex=${headerHex})`
+                );
+                return null;
+              }
+
               return {
                 buffer,
                 filename: file.name || "receipt.jpg",
-                mimeType: file.mimetype || "image/jpeg",
+                mimeType: contentType || file.mimetype || "image/jpeg",
               };
             })
           );

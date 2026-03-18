@@ -1,0 +1,23 @@
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+.env
+.env.*
+
+*.local
+.DS_Store
+
+dist
+
+# Credentials / secrets (do not bake into image)
+*credentials*.json
+*service-account*.json
+expense-logger-*.json
+
+# Cursor / IDE noise
+.cursor
+agent-transcripts
+terminals
+

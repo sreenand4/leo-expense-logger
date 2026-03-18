@@ -79,20 +79,11 @@ export function registerNewShootCommand(app: App): void {
       return;
     }
 
-    console.log("[NewShoot] [2/5] channel created, inviting bot and user...", {
+    console.log("[NewShoot] [2/5] channel created, inviting user...", {
       channelId,
     });
 
-    // 5. Invite bot to channel
-    try {
-      await client.conversations.join({ channel: channelId });
-    } catch (err) {
-      logger.error(err);
-      await ephemeral("The channel was created but I couldn’t join it. You can invite me manually.");
-      return;
-    }
-
-    // 5b. Invite the user who ran the command to the channel
+    // 5. Invite the user who ran the command to the channel
     try {
       await client.conversations.invite({
         channel: channelId,
@@ -103,7 +94,7 @@ export function registerNewShootCommand(app: App): void {
       // Don't block — channel and sheet still work; user can join manually
     }
 
-    console.log("[NewShoot] [3/5] bot and user invited, creating sheet...");
+    console.log("[NewShoot] [3/5] user invited, creating sheet...");
 
     // 6. Create shoot sheet
     let sheetId: string;

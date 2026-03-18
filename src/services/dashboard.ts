@@ -40,16 +40,10 @@ export function formatDashboardBlocks(shoots: DashboardShoot[]): object[] {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "Google account connected ✓",
-      },
-    },
-    {
-      type: "section",
-      text: {
-        type: "mrkdwn",
         text: `Last updated: ${lastUpdated}`,
       },
     },
+    { type: "divider" },
     {
       type: "section",
       text: {
@@ -57,7 +51,6 @@ export function formatDashboardBlocks(shoots: DashboardShoot[]): object[] {
         text: ":vertical_traffic_light: *Active Shoots*",
       },
     },
-    { type: "divider" },
   ];
 
   if (activeShoots.length === 0) {
@@ -100,11 +93,11 @@ export function formatDashboardBlocks(shoots: DashboardShoot[]): object[] {
     for (const s of archivedShoots) {
       const dateStr = s.archivedAt
         ? s.archivedAt.toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
         : "—";
       blocks.push({
         type: "section",
