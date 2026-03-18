@@ -24,6 +24,48 @@ function looksLikeJpeg(buf: Buffer): boolean {
   return buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
 }
 
+async function fetchSlackFileWithAuth(
+  url: string,
+  token: string,
+  maxRedirects = 5
+): Promise<Response> {
+  // Node/undici drops Authorization on cross-origin redirects.
+  // Slack file URLs frequently 302 to a workspace domain, so we must follow manually
+  // and re-send the Bearer token each time.
+  let current = url;
+  for (let i = 0; i <= maxRedirects; i++) {
+    const res = await fetch(current, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/octet-stream",
+      },
+      redirect: "manual",
+    });
+
+    if (
+      res.status === 301 ||
+      res.status === 302 ||
+      res.status === 303 ||
+      res.status === 307 ||
+      res.status === 308
+    ) {
+      const location = res.headers.get("location");
+      if (!location) return res;
+      current = new URL(location, current).toString();
+      continue;
+    }
+
+    return res;
+  }
+
+  return await fetch(current, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/octet-stream",
+    },
+  });
+}
+
 export function registerMessageHandler(app: App): void {
   app.message(async ({ message, client, logger, context }) => {
     let placeholder: { ts?: string } | null = null;
@@ -81,6 +123,7 @@ export function registerMessageHandler(app: App): void {
         name?: string;
         mimetype?: string;
         url_private?: string;
+        url_private_download?: string;
       }> | undefined;
 
       if (Array.isArray(files) && files.length > 0) {
@@ -95,11 +138,34 @@ export function registerMessageHandler(app: App): void {
 
           const downloadedImages = await Promise.all(
             imageFiles.map(async (file) => {
-              if (!file.url_private || !token) return null;
+              if (!token) return null;
+              const fallbackUrl = file.url_private_download || file.url_private;
+              if (!fallbackUrl) return null;
 
-              const res = await fetch(file.url_private, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
+              // Cloud Run reliability: ask Slack Web API for a fresh, authorized download URL
+              // rather than trusting the event payload URL alone.
+              let url = fallbackUrl;
+              if (file.id) {
+                try {
+                  const info = (await (client as unknown as {
+                    files: { info: (args: { file: string }) => Promise<unknown> };
+                  }).files.info({ file: file.id })) as {
+                    ok?: boolean;
+                    file?: { url_private_download?: string; url_private?: string };
+                  };
+                  const apiUrl =
+                    info?.file?.url_private_download || info?.file?.url_private;
+                  if (apiUrl) url = apiUrl;
+                } catch (infoErr) {
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    `${HANDLER_LOG} files.info failed for file id=${file.id}, falling back to event url:`,
+                    infoErr
+                  );
+                }
+              }
+
+              const res = await fetchSlackFileWithAuth(url, token);
 
               if (!res.ok) return null;
 
@@ -117,7 +183,7 @@ export function registerMessageHandler(app: App): void {
 
               // eslint-disable-next-line no-console
               console.log(
-                `${HANDLER_LOG} Downloaded file id=${file.id ?? "?"} name=${file.name ?? "?"} status=${res.status} content-type=${contentType ?? "?"} content-length=${contentLength ?? "?"} bytes=${buffer.length} headerHex=${headerHex} url=${finalUrl ?? file.url_private}`
+                `${HANDLER_LOG} Downloaded file id=${file.id ?? "?"} name=${file.name ?? "?"} status=${res.status} content-type=${contentType ?? "?"} content-length=${contentLength ?? "?"} bytes=${buffer.length} headerHex=${headerHex} url=${finalUrl ?? url}`
               );
 
               // If Slack auth/redirect issues happen on Cloud Run, we can end up with HTML (200 OK).
@@ -182,11 +248,21 @@ export function registerMessageHandler(app: App): void {
 
       // eslint-disable-next-line no-console
       console.log(`${HANDLER_LOG} Updating placeholder with response (${llmResponse.length} chars)`);
-      await client.chat.update({
-        channel: message.channel,
-        ts: placeholder!.ts!,
-        text: llmResponse,
-      });
+      try {
+        await client.chat.update({
+          channel: message.channel,
+          ts: placeholder!.ts!,
+          text: llmResponse,
+        });
+      } catch (updateErr) {
+        // If update fails, fall back to posting a new message so the user isn't stuck on "thinking..."
+        // eslint-disable-next-line no-console
+        console.error(`${HANDLER_LOG} chat.update failed, falling back to postMessage:`, updateErr);
+        await client.chat.postMessage({
+          channel: message.channel,
+          text: llmResponse,
+        });
+      }
       // eslint-disable-next-line no-console
       console.log(`${HANDLER_LOG} Done.`);
     } catch (err) {

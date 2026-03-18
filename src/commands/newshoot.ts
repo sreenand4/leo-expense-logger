@@ -25,20 +25,23 @@ export function registerNewShootCommand(app: App): void {
     const isReady = await requireOnboarded(command.user_id, command.team_id, respond);
     if (!isReady) return;
 
-    // Helper: ephemeral progress/error
+    // Placeholder + in-place updates
+    await respond({
+      response_type: "ephemeral",
+      text: "Working on it…",
+    });
     const ephemeral = (text: string) =>
       respond({
         response_type: "ephemeral",
+        replace_original: true,
         text,
       });
 
     // 0. Check if the command is being run in a direct message
     if (command.channel_name !== 'directmessage') {
-      await respond({
-        response_type: "ephemeral",
-        text:
-          "Please use this command in our DMs. Find me in your sidebar under Direct Messages.",
-      });
+      await ephemeral(
+        "Please use this command in our DMs. Find me in your sidebar under Direct Messages."
+      );
       return;
     }
 
@@ -168,13 +171,6 @@ export function registerNewShootCommand(app: App): void {
       `• Channel: #${channelName} — check your sidebar and accept the invite to see the expense log\n` +
       `• Expense sheet: ${sheetUrl}\n\n` +
       `This is now your active shoot. Just send me an expense or drop a receipt photo to start logging to ${rawName}`;
-    try {
-      await client.chat.postMessage({
-        channel: command.channel_id,
-        text: successText,
-      });
-    } catch (err) {
-      logger.error("Failed to post success message:", err);
-    }
+    await ephemeral(successText);
   });
 }
