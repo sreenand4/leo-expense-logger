@@ -109,7 +109,6 @@ export function registerMessageHandler(app: App): void {
         return;
       }
 
-      // eslint-disable-next-line no-console
       console.log(`${HANDLER_LOG} DM received from ${userId}`);
 
       const { onboardingStatus } = await getUserStateWithCache(
@@ -149,7 +148,6 @@ export function registerMessageHandler(app: App): void {
         const imageFiles = files.filter((f) =>
           f.mimetype?.startsWith("image/")
         );
-        // eslint-disable-next-line no-console
         console.log(`${HANDLER_LOG} Attachments: ${files.length} total, ${imageFiles.length} image(s)`);
 
         if (imageFiles.length > 0) {
@@ -174,7 +172,6 @@ export function registerMessageHandler(app: App): void {
                   if (info?.file?.url_private_download) candidates.push(info.file.url_private_download);
                   if (info?.file?.url_private) candidates.push(info.file.url_private);
                 } catch (infoErr) {
-                  // eslint-disable-next-line no-console
                   console.log(
                     `${HANDLER_LOG} files.info failed for file id=${file.id} (will try event URLs):`,
                     infoErr
@@ -201,7 +198,6 @@ export function registerMessageHandler(app: App): void {
                 const finalUrl = (res as unknown as { url?: string }).url;
 
                 if (!res.ok) {
-                  // eslint-disable-next-line no-console
                   console.log(
                     `${HANDLER_LOG} Download attempt failed id=${file.id ?? "?"} name=${file.name ?? "?"} status=${res.status} content-type=${contentType ?? "?"} url=${safeUrlForLogs(finalUrl ?? url)}`
                   );
@@ -211,13 +207,11 @@ export function registerMessageHandler(app: App): void {
                 const buffer = Buffer.from(await res.arrayBuffer());
                 const headerHex = buffer.subarray(0, 16).toString("hex");
 
-                // eslint-disable-next-line no-console
                 console.log(
                   `${HANDLER_LOG} Downloaded file id=${file.id ?? "?"} name=${file.name ?? "?"} status=${res.status} content-type=${contentType ?? "?"} content-length=${contentLength ?? "?"} bytes=${buffer.length} headerHex=${headerHex} url=${safeUrlForLogs(finalUrl ?? url)}`
                 );
 
                 if (!isValidImagePayload(contentType || file.mimetype, buffer)) {
-                  // eslint-disable-next-line no-console
                   console.log(
                     `${HANDLER_LOG} Not an image payload (will try next URL if any): content-type=${contentType ?? file.mimetype ?? "?"} headerHex=${headerHex}`
                   );
@@ -231,7 +225,6 @@ export function registerMessageHandler(app: App): void {
                 };
               }
 
-              // eslint-disable-next-line no-console
               console.log(
                 `${HANDLER_LOG} Skipping upload: no valid image download URL worked for file id=${file.id ?? "?"} name=${file.name ?? "?"}`
               );
@@ -243,24 +236,20 @@ export function registerMessageHandler(app: App): void {
             (img): img is NonNullable<typeof img> => img !== null
           );
           if (downloadedImages.length !== validImages.length) {
-            // eslint-disable-next-line no-console
             console.log(`${HANDLER_LOG} Image download: ${validImages.length}/${downloadedImages.length} succeeded`);
           }
 
           if (validImages.length > 0) {
-            // eslint-disable-next-line no-console
             console.log(`${HANDLER_LOG} Uploading ${validImages.length} image(s) to GCS…`);
             const urls =
               await uploadMultipleReceiptImages(validImages);
             receiptUrls.push(...urls);
-            // eslint-disable-next-line no-console
             console.log(`${HANDLER_LOG} GCS upload done, receiptUrls: ${urls.length}`);
           }
         }
       }
 
       const messageText = (msg.text as string) ?? "";
-      // eslint-disable-next-line no-console
       console.log(`${HANDLER_LOG} Calling handleLLMMessage (text=${messageText.slice(0, 50)}… receiptUrls=${receiptUrls.length})`);
 
       const updatePlaceholder =
@@ -281,7 +270,6 @@ export function registerMessageHandler(app: App): void {
         updatePlaceholder
       );
 
-      // eslint-disable-next-line no-console
       console.log(`${HANDLER_LOG} Updating placeholder with response (${llmResponse.length} chars)`);
       try {
         await client.chat.update({
@@ -291,17 +279,14 @@ export function registerMessageHandler(app: App): void {
         });
       } catch (updateErr) {
         // If update fails, fall back to posting a new message so the user isn't stuck on "thinking..."
-        // eslint-disable-next-line no-console
         console.error(`${HANDLER_LOG} chat.update failed, falling back to postMessage:`, updateErr);
         await client.chat.postMessage({
           channel: message.channel,
           text: llmResponse,
         });
       }
-      // eslint-disable-next-line no-console
       console.log(`${HANDLER_LOG} Done.`);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error(`${HANDLER_LOG} FAILED:`, err);
       logger.error(err);
       try {

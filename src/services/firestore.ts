@@ -456,10 +456,17 @@ export async function archiveShoot(
  * Increment totalExpenses on the shoot document by 1.
  */
 export async function incrementExpenseCount(shootId: string): Promise<void> {
-  const shootRef = getDb().collection(SHOOTS_COLLECTION).doc(shootId);
-  await shootRef.update({
-    totalExpenses: FieldValue.increment(1),
-  });
+  try {
+    const shootRef = getDb().collection(SHOOTS_COLLECTION).doc(shootId);
+    await shootRef.update({
+      totalExpenses: FieldValue.increment(1),
+    });
+  } catch (error) {
+    console.warn(
+      `[incrementExpenseCount] Failed to increment expense count for shoot ${shootId}:`,
+      error
+    );
+  }
 }
 
 /**
@@ -471,8 +478,16 @@ export async function addReceiptUrlsToShoot(
 ): Promise<void> {
   if (urls.length === 0) return;
   const shootRef = getDb().collection(SHOOTS_COLLECTION).doc(shootId);
-  await shootRef.update({
-    receiptUrls: FieldValue.arrayUnion(...urls),
-    updatedAt: Timestamp.now(),
-  });
+  try {
+    await shootRef.update({
+      receiptUrls: FieldValue.arrayUnion(...urls),
+      updatedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    // This is a non-critical ETL-like side task. Main workflow should succeed regardless.
+    console.warn(
+      `[addReceiptUrlsToShoot] Failed to append receipt URLs for shoot ${shootId}:`,
+      error
+    );
+  }
 }

@@ -347,7 +347,6 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
       </html>
     `);
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("OAuth callback error:", err);
     res.status(500).send(`
       <html>

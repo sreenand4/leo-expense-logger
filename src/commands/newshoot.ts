@@ -73,12 +73,12 @@ export function registerNewShootCommand(app: App): void {
       return;
     }
 
-    await updatePlaceholder("1/4 Validating name…");
+    await updatePlaceholder("Validating name…");
 
     console.log("[NewShoot] [1/5] name passed sanitization, creating channel...");
 
     // 4. Create channel — wrap in try/catch for duplicate channel errors
-    await updatePlaceholder("2/4 Creating Slack channel…");
+    await updatePlaceholder("Creating Slack channel…");
     let channelId: string;
     try {
       const created = await client.conversations.create({
@@ -121,7 +121,7 @@ export function registerNewShootCommand(app: App): void {
     console.log("[NewShoot] [3/5] user invited, creating sheet...");
 
     // 6. Create shoot sheet
-    await updatePlaceholder("3/4 Creating Google Sheet…");
+    await updatePlaceholder("Creating Google Sheet…");
     let sheetId: string;
     let sheetUrl: string;
     try {
@@ -139,7 +139,7 @@ export function registerNewShootCommand(app: App): void {
     console.log("[NewShoot] [4/5] sheet created, saving shoot in Firestore...");
 
     // 7. Save shoot to Firestore | 8. Set as active shoot
-    await updatePlaceholder("4/4 Setting as your active shoot…");
+    await updatePlaceholder("Setting as your active shoot…");
     let shootId: string;
     try {
       shootId = await firestore.createShoot(
@@ -224,7 +224,7 @@ export function registerNewShootCommand(app: App): void {
           type: "header",
           text: {
             type: "plain_text",
-            text: `${channelName || rawName} is all set up!`,
+            text: `#${channelName || rawName} is all set up!`,
             emoji: true,
           },
         },
@@ -233,9 +233,7 @@ export function registerNewShootCommand(app: App): void {
           text: {
             type: "mrkdwn",
             text:
-              `• Channel: #${channelName || rawName}\n` +
-              `• [Expense Sheet](${sheetUrl})\n\n` +
-              `This is now your active shoot. Just send me an expense or drop a receipt photo to start logging to *${channelName || rawName}*.`,
+              `This is now your active shoot. Send me an expense or photo and I'll log it to *${channelName || rawName}*.`,
           },
         },
         {
@@ -245,7 +243,7 @@ export function registerNewShootCommand(app: App): void {
               type: "button",
               text: {
                 type: "plain_text",
-                text: "Open Expense Sheet",
+                text: "Expense Sheet",
                 emoji: true,
               },
               style: "primary",

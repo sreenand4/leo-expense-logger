@@ -78,7 +78,6 @@ async function getOrCreateDriveFolderForUser(
     await setDriveFolderId(userId, folderId);
     return folderId;
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(
       "Failed to get or create Drive folder for user; falling back to env folder if set:",
       err

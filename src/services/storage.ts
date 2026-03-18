@@ -50,7 +50,6 @@ export async function uploadReceiptImage(
 
     return `https://storage.googleapis.com/${bucketName}/${filename}`;
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("uploadReceiptImage error:", err);
     throw err;
   }

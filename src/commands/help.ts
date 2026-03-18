@@ -5,7 +5,6 @@ export function registerHelpCommand(app: App): void {
   app.command("/help", async ({ ack, command, respond, logger }) => {
     await ack();
 
-    // eslint-disable-next-line no-console
     console.log("[Help] command received", {
       userId: command.user_id,
       teamId: command.team_id,

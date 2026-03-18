@@ -73,7 +73,7 @@ Call respective getActiveShoot, getAllShoots, and getSheetSummary tools to get t
 
 **After logging expenses:**
 Reply with ONLY a confirmation. One line per expense. No questions, no emojis, no suggestions.
-Format: "Logged: [Shoot name] — [Merchant], $[amount], [Category], [date]."
+Format: "Logged [Merchant], $[Amount], [Category], [Date] - [Shoot name]."
 
 **After spending questions:**
 State only the facts. No commentary.
@@ -189,7 +189,6 @@ async function executeTool(
   updatePlaceholder?: (text: string) => Promise<void>
 ): Promise<string> {
   const logPrefix = "[LLM executeTool]";
-  // eslint-disable-next-line no-console
   console.log(`${logPrefix} ${name} called`, input?.imageUrl ? "(imageUrl present)" : Object.keys(input).filter((k) => input[k] != null).join(", ") || "(no args)");
   try {
     switch (name) {
@@ -197,18 +196,15 @@ async function executeTool(
         await updatePlaceholder?.("Getting active shoot…");
         const result = await getActiveShoot(userId);
         if (result === null) {
-          // eslint-disable-next-line no-console
           console.log(`${logPrefix} getActiveShoot -> no active shoot`);
           return "No active shoot found. The user needs to run /newshoot first.";
         }
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} getActiveShoot -> success (shoot: ${result.name})`);
         return JSON.stringify(result);
       }
       case "getAllShoots": {
         await updatePlaceholder?.("Getting all shoots…");
         const result = await getAllShoots(userId);
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} getAllShoots -> success (${result.length} shoots)`);
         return JSON.stringify(result);
       }
@@ -216,19 +212,16 @@ async function executeTool(
         await updatePlaceholder?.("Summarizing expense sheet…");
         const sheetId = input.sheetId as string;
         const result = await getSheetSummary(userId, sheetId);
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} getSheetSummary -> success (${result.length} rows)`);
         return JSON.stringify(result);
       }
       case "parseReceiptWithOCR": {
         await updatePlaceholder?.("Processing image…");
         const imageUrl = input.imageUrl as string;
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} parseReceiptWithOCR -> fetching image from GCS: ${imageUrl.slice(0, 80)}…`);
 
         const imageResponse = await fetch(imageUrl);
         if (!imageResponse.ok) {
-          // eslint-disable-next-line no-console
           console.log(`${logPrefix} parseReceiptWithOCR -> failed to fetch image: ${imageResponse.status}`);
           return JSON.stringify({
             error: `Failed to fetch image: ${imageResponse.status}`,
@@ -250,10 +243,8 @@ async function executeTool(
         form.append("strategy", "hi_res");
         form.append("output_format", "application/json");
 
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} parseReceiptWithOCR -> building multipart body…`);
         const formBuffer = (form as { getBuffer: () => Buffer }).getBuffer();
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} parseReceiptWithOCR -> multipart size: ${formBuffer.length} bytes`);
         const formHeaders = {
           "unstructured-api-key":
@@ -281,7 +272,6 @@ async function executeTool(
           clearTimeout(timeoutId);
           const isTimeout =
             fetchErr instanceof Error && fetchErr.name === "AbortError";
-          // eslint-disable-next-line no-console
           console.log(
             `${logPrefix} parseReceiptWithOCR -> ${isTimeout ? "timed out after 60s" : "fetch failed"}:`,
             fetchErr
@@ -296,7 +286,6 @@ async function executeTool(
 
         if (!unstructuredResponse.ok) {
           const errText = await unstructuredResponse.text();
-          // eslint-disable-next-line no-console
           console.log(
             `${logPrefix} parseReceiptWithOCR -> Unstructured API error: ${unstructuredResponse.status}`,
             errText
@@ -310,7 +299,6 @@ async function executeTool(
           type: string;
           text: string;
         }>;
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} parseReceiptWithOCR -> Unstructured API success: ${elements?.length ?? 0} elements`);
 
         const markdown = elements
@@ -323,9 +311,7 @@ async function executeTool(
           .join("\n\n");
 
         const out = markdown || "No text could be extracted from this receipt image.";
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} parseReceiptWithOCR -> success (markdown length ${out.length})`);
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} parseReceiptWithOCR -> extracted content:\n${out}`);
         return out;
       }
@@ -349,9 +335,9 @@ async function executeTool(
           notes,
           receiptUrl,
         });
-        await incrementExpenseCount(shootId);
+        incrementExpenseCount(shootId);
         if (receiptUrls.length > 0) {
-          await addReceiptUrlsToShoot(shootId, receiptUrls);
+          addReceiptUrlsToShoot(shootId, receiptUrls);
         }
 
         // Notify the shoot's Slack channel so the user sees the update there
@@ -375,15 +361,12 @@ async function executeTool(
               blocks,
               fallbackText
             );
-            // eslint-disable-next-line no-console
             console.log(`${logPrefix} logExpense -> posted to shoot channel ${shoot.slackChannelId}`);
           }
         } catch (postErr) {
-          // eslint-disable-next-line no-console
           console.warn(`${logPrefix} logExpense -> failed to post to shoot channel:`, postErr);
         }
 
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} logExpense -> success (${merchant} $${amount})`);
         return JSON.stringify({
           success: true,
@@ -393,13 +376,11 @@ async function executeTool(
         });
       }
       default:
-        // eslint-disable-next-line no-console
         console.log(`${logPrefix} ${name} -> unknown tool`);
         return "Unknown tool";
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    // eslint-disable-next-line no-console
     console.error(`${logPrefix} ${name} -> threw:`, message);
     return JSON.stringify({ error: message });
   }
@@ -419,7 +400,6 @@ export async function handleLLMMessage(
   receiptUrls?: string[],
   updatePlaceholder?: (text: string) => Promise<void>
 ): Promise<string> {
-  // eslint-disable-next-line no-console
   console.log(`${LOG_PREFIX} handleLLMMessage start — userId=${userId} receiptUrls=${receiptUrls?.length ?? 0} text=${(messageText || "").slice(0, 80)}${(messageText?.length ?? 0) > 80 ? "…" : ""}`);
 
   const client = new Anthropic();
@@ -449,7 +429,6 @@ export async function handleLLMMessage(
     let iteration = 0;
     while (true) {
       iteration += 1;
-      // eslint-disable-next-line no-console
       console.log(`${LOG_PREFIX} --- loop iteration ${iteration} ---`);
 
       const response = await client.messages.create({
@@ -463,7 +442,6 @@ export async function handleLLMMessage(
       const contentSummary = response.content
         .map((b) => (b.type === "text" ? "text" : b.type === "tool_use" ? `tool_use:${(b as { name: string }).name}` : b.type))
         .join(", ");
-      // eslint-disable-next-line no-console
       console.log(`${LOG_PREFIX} Claude response: stop_reason=${response.stop_reason} content=[${contentSummary}]`);
 
       if (response.stop_reason === "end_turn") {
@@ -473,7 +451,6 @@ export async function handleLLMMessage(
             ? (textBlock as { text: string }).text
             : undefined;
         const finalText = toSlackMrkdwn(text ?? "Done.");
-        // eslint-disable-next-line no-console
         console.log(`${LOG_PREFIX} -> FINAL RESPONSE to user (${finalText.length} chars):`, finalText.slice(0, 120) + (finalText.length > 120 ? "…" : ""));
         return finalText;
       }
@@ -481,7 +458,6 @@ export async function handleLLMMessage(
       if (response.stop_reason === "tool_use") {
         const toolBlocks = response.content.filter((b) => b.type === "tool_use") as Array<{ name: string; id: string; input: unknown }>;
         const toolNames = toolBlocks.map((b) => b.name).join(", ");
-        // eslint-disable-next-line no-console
         console.log(`${LOG_PREFIX} -> TOOL CALL (${toolBlocks.length}): ${toolNames}`);
 
         const toolResults: Anthropic.ToolResultBlockParam[] = [];
@@ -495,7 +471,6 @@ export async function handleLLMMessage(
               updatePlaceholder
             );
             const resultPreview = result.length > 100 ? `${result.slice(0, 100)}…` : result;
-            // eslint-disable-next-line no-console
             console.log(`${LOG_PREFIX} tool result ${block.name}:`, resultPreview);
             toolResults.push({
               type: "tool_result",
@@ -507,12 +482,10 @@ export async function handleLLMMessage(
 
         messages.push({ role: "assistant", content: response.content });
         messages.push({ role: "user", content: toolResults });
-        // eslint-disable-next-line no-console
         console.log(`${LOG_PREFIX} -> REPROMPT with ${toolResults.length} tool result(s), continuing loop`);
       }
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(`${LOG_PREFIX} FAILED:`, err);
     return "Sorry, something went wrong. Please try again.";
   }

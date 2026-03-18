@@ -91,7 +91,6 @@ export function registerWrapShootCommand(app: App): void {
   app.command("/wrapshoot", async ({ ack, command, respond, client }) => {
     await ack();
 
-    // eslint-disable-next-line no-console
     console.log("[WrapShoot] command received", {
       userId: command.user_id,
       teamId: command.team_id,
@@ -114,7 +113,7 @@ export function registerWrapShootCommand(app: App): void {
     if (!shoot) {
       await respond({
         response_type: "ephemeral",
-        text: "You don't have an active shoot. Use /newshoot [name] to start one.",
+        text: "You don't have an active shoot selected to wrap. Either /setshoot [name] or /newshoot [name]",
       });
       return;
     }

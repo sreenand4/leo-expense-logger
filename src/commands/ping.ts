@@ -5,7 +5,6 @@ export function registerPingCommand(app: App): void {
     await ack();
 
     try {
-      // eslint-disable-next-line no-console
       console.log("[Ping] command received", {
         userId: command.user_id,
         teamId: command.team_id,

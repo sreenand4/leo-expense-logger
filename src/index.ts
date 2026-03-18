@@ -116,14 +116,12 @@ async function start() {
   registerAppHomeHandler(app);
   registerMessageHandler(app);
 
-  // eslint-disable-next-line no-console
   console.log(
     `⚡️ Expense logger dev server is running on port ${port} in ${NODE_ENV || "development"} mode.`
   );
 }
 
 start().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error("Failed to start Leo:", err);
   process.exit(1);
 });

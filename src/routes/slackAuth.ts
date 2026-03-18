@@ -10,7 +10,6 @@ const clientSecret = process.env.SLACK_CLIENT_SECRET;
 const serverBaseUrl = process.env.SERVER_BASE_URL;
 
 if (!clientId || !clientSecret) {
-  // eslint-disable-next-line no-console
   console.warn(
     "[SlackAuth] SLACK_CLIENT_ID or SLACK_CLIENT_SECRET is not set. " +
     "Slack OAuth installation will not work until these are configured."
@@ -18,7 +17,6 @@ if (!clientId || !clientSecret) {
 }
 
 if (!serverBaseUrl) {
-  // eslint-disable-next-line no-console
   console.warn(
     "[SlackAuth] SERVER_BASE_URL is not set. " +
     "Slack OAuth redirect URL will be incorrect until this is configured."
@@ -31,7 +29,6 @@ router.get("/slack/oauth_redirect", async (req, res) => {
   const code = req.query.code as string | undefined;
 
   if (!code || !clientId || !clientSecret || !serverBaseUrl) {
-    // eslint-disable-next-line no-console
     console.error(
       "[SlackAuth] Missing code or required env vars in /slack/oauth_redirect",
       { hasCode: Boolean(code), clientIdSet: Boolean(clientId), clientSecretSet: Boolean(clientSecret), serverBaseUrlSet: Boolean(serverBaseUrl) }
@@ -56,7 +53,6 @@ router.get("/slack/oauth_redirect", async (req, res) => {
     const installedBy = result.authed_user?.id ?? "unknown";
 
     if (!workspaceId || !botToken || !botUserId) {
-      // eslint-disable-next-line no-console
       console.error("[SlackAuth] Missing workspaceId, botToken, or botUserId from oauth.v2.access response", {
         workspaceId,
         hasBotToken: Boolean(botToken),
@@ -76,7 +72,6 @@ router.get("/slack/oauth_redirect", async (req, res) => {
 
     return res.redirect("/install-success");
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("[SlackAuth] Slack OAuth failed:", err);
     return res.redirect("/install-fail");
   }

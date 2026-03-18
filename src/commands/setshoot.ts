@@ -8,7 +8,6 @@ export function registerSetShootCommand(app: App): void {
   app.command("/setshoot", async ({ ack, command, respond, client }) => {
     await ack();
 
-    // eslint-disable-next-line no-console
     console.log("[SetShoot] command received", {
       userId: command.user_id,
       teamId: command.team_id,

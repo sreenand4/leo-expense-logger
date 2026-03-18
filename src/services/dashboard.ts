@@ -71,6 +71,7 @@ export function formatDashboardBlocks(shoots: DashboardShoot[]): object[] {
         },
       });
     }
+    blocks.push({ type: "divider" });
   }
 
   if (archivedShoots.length > 0) {
@@ -80,15 +81,6 @@ export function formatDashboardBlocks(shoots: DashboardShoot[]): object[] {
         type: "mrkdwn",
         text: ":wastebasket: *Archived Shoots*",
       },
-    });
-    blocks.push({
-      type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text: "_Archived shoots will be permanently deleted after 30 days._",
-        },
-      ],
     });
     for (const s of archivedShoots) {
       const dateStr = s.archivedAt
@@ -107,6 +99,15 @@ export function formatDashboardBlocks(shoots: DashboardShoot[]): object[] {
         },
       });
     }
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: "_Archived shoots will be permanently deleted after 30 days._",
+        },
+      ],
+    });
   }
 
   return blocks;
