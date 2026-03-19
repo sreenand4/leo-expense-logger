@@ -7,6 +7,7 @@ import {
   setGoogleRefreshToken,
   setOnboardingStatus,
 } from "../services/firestore";
+import { setUserStateCache } from "../utils/slack";
 
 function createOAuth2Client() {
   return new google.auth.OAuth2(
@@ -90,6 +91,13 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
               max-width: 520px;
             }
 
+            .hero-image {
+              display: block;
+              margin: 0 auto 24px auto;
+              max-width: min(440px, 90vw);
+              height: auto;
+            }
+
             h1 {
               margin: 0 0 12px 0;
               font-size: clamp(26px, 4vw, 32px);
@@ -113,6 +121,11 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
         <body>
           <div class="wrap">
             <div class="card">
+              <img
+                src="/assets/install-fail.png"
+                alt="Google authorization cancelled"
+                class="hero-image"
+              />
               <h1>❌ Authorization cancelled</h1>
               <p>You declined access. You can close this tab and try again from Slack.</p>
             </div>
@@ -175,6 +188,13 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
                 max-width: 520px;
               }
 
+              .hero-image {
+                display: block;
+                margin: 0 auto 24px auto;
+                max-width: min(440px, 90vw);
+                height: auto;
+              }
+
               h1 {
                 margin: 0 0 12px 0;
                 font-size: clamp(26px, 4vw, 32px);
@@ -198,6 +218,11 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
           <body>
             <div class="wrap">
               <div class="card">
+                <img
+                  src="/assets/install-fail.png"
+                  alt="Google authorization incomplete"
+                  class="hero-image"
+                />
                 <h1>⚠️ Authorization incomplete</h1>
                 <p>Google did not return a refresh token. Please return to Slack and try connecting again.</p>
               </div>
@@ -210,6 +235,10 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
 
     await setGoogleRefreshToken(userId, tokens.refresh_token);
     await setOnboardingStatus(userId, "ready");
+    setUserStateCache(userId, {
+      onboardingStatus: "ready",
+      googleRefreshToken: tokens.refresh_token,
+    });
 
     // Multi-tenant: use the workspace's bot token when available.
     let botToken = process.env.SLACK_BOT_TOKEN;
@@ -315,6 +344,13 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
               max-width: 520px;
             }
 
+            .hero-image {
+              display: block;
+              margin: 0 auto 24px auto;
+              max-width: min(440px, 90vw);
+              height: auto;
+            }
+
             h1 {
               margin: 0 0 12px 0;
               font-size: clamp(26px, 4vw, 32px);
@@ -338,6 +374,11 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
         <body>
           <div class="wrap">
             <div class="card">
+              <img
+                src="/assets/install-success.png"
+                alt="Google account connected"
+                class="hero-image"
+              />
               <h1>✅ Google account connected!</h1>
               <p>You can close this tab and return to Slack.</p>
               <p class="hint">Leo now has access to your Google Drive and Sheets.</p>
@@ -388,6 +429,13 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
               max-width: 520px;
             }
 
+            .hero-image {
+              display: block;
+              margin: 0 auto 24px auto;
+              max-width: min(440px, 90vw);
+              height: auto;
+            }
+
             h1 {
               margin: 0 0 12px 0;
               font-size: clamp(26px, 4vw, 32px);
@@ -411,6 +459,11 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
         <body>
           <div class="wrap">
             <div class="card">
+              <img
+                src="/assets/install-fail.png"
+                alt="Google account connection failed"
+                class="hero-image"
+              />
               <h1>❌ Something went wrong</h1>
               <p>There was an error connecting your Google account. Please return to Slack and try again.</p>
             </div>

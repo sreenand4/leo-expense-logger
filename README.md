@@ -52,7 +52,7 @@ This makes it easy to extend behavior: adding a new capability usually means add
 - **Entry point**: `src/index.ts`
   - Loads environment, creates the Bolt `App` with an `authorize` function that looks up workspace-specific tokens from Firestore (`getSlackInstallation`).
   - Registers slash commands and handlers (e.g. `registerNewShootCommand`, `registerWrapShootCommand`, `registerMessageHandler`).
-  - Exposes `/healthz` and static assets for install pages.
+  - Exposes `/health` (and `/healthz` alias) and static assets for install pages.
 
 - **Data layer / tools**: `src/services/firestore.ts`
   - Provides small, composable tool functions like:

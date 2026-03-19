@@ -101,6 +101,17 @@ export async function getUserStateWithCache(
   return state;
 }
 
+/**
+ * Upsert user state cache when another flow (for example OAuth callback)
+ * knows onboarding data changed and wants future checks to reflect it.
+ */
+export function setUserStateCache(
+  userId: string,
+  state: CachedUserState
+): void {
+  userStateCache.set(userId, state);
+}
+
 export async function requireOnboarded(
   userId: string,
   workspaceId: string | undefined,

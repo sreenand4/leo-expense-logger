@@ -35,7 +35,7 @@ if (!SLACK_SIGNING_SECRET) {
 }
 
 // ExpressReceiver gives us direct access to the underlying Express app.
-// This lets us add non-Slack routes such as /healthz for Cloud Run.
+// This lets us add non-Slack routes such as /health for Cloud Run.
 const receiver = new ExpressReceiver({
   signingSecret: SLACK_SIGNING_SECRET,
   // This is the default Slack events endpoint path; you'll plug this into Slack later.
@@ -89,8 +89,9 @@ const app = new App({
   },
 });
 
-// Simple health check for Cloud Run, ngrok, and your own sanity.
-receiver.router.get("/healthz", (_req, res) => {
+// Health checks for Cloud Run, ngrok, and your own sanity.
+// Keep both paths so older docs/probes that use /healthz keep working.
+receiver.app.get(["/health", "/healthz"], (_req, res) => {
   res.status(200).json({
     ok: true,
     service: "expense-logger",
